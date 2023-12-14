@@ -4,6 +4,7 @@ import glob
 import sys
 import json
 from functools import partial
+import torch
 
 from typing import List
 
@@ -12,7 +13,8 @@ from utils import determine_dimensions, file_to_tree_type_name
 
 ##############################
 def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan: str='keep_nan', bands_to_delete: List[str]=[], 
-                             transformer_for_numpy_array: partial = None, verbose: bool=True):
+                             transformer_for_numpy_array: partial = None, transformers_data_augmentation: List[partial] = None,
+                             verbose: bool=True):
     '''
     This function preprocesses the geojson files. The big goal is to create a numpy array for each sample and store them 
     accordingly in a dedicated folder. 
@@ -27,9 +29,15 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
                          <delete_nan_samples>:  samples that contain nan are not written to disk
     bands_to_delete -> DEFAULT None: band names in this list are not considered when writting the arrays to disk. 
     transformer_for_numpy_array -> DEFAULT None: transformer function that transforms numpy array before
-                                                 preprocessing method is applied (e.g. np.nanmean, np.nanmedian,...)
+                                                 preprocessing method is applied (e.g. np.nanmean, np.nanmedian,...). 
+    transformers_data_augmentation -> DEFAULT None: List of transformer functions from torchvision.transforms.v2.functional
+                                                   (https://pytorch.org/vision/stable/transforms.html#transform-classes-functionals-and-kernels)
+                                                   that used for data augmentation of the arrays. Not applied if <transformer_for_numpy_array> is not None.
 
-    The arrays are written as .npy-files to disk in certain folders. The folders have the following naming convention:
+    The arrays are written as .npy-files with the naming convetion:
+    "<label>-<index>-<name_of_transformer_data_augmentation>.npy"
+    to disk in certain folders, whereas "-<name_of_transformer_data_augmentation>" is not added for no augmentation transforms. 
+    The folders have the following naming convention:
     "<identifier>_<what_happens_to_nan>_<name_of_transformer_function>_<bands_to_delete>", 
     whereas ".<bands_to_delete>" is not added for no bands.
     '''
@@ -62,8 +70,12 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         sys.exit(f"\nThe found geojson-files don't seem to match the standard naming convention \'<Tree>_<species>_<identifier>.geojson\'. Terminating.")
     
     # if not existent, create folder to save numpy arrays
-    output_dir = os.path.join(data_dir, f'{identifier}_{what_happens_to_nan}_' + 
-                              f'{transformer_for_numpy_array.func.__name__}{delete_bands_str}')
+    if transformer_for_numpy_array is None:
+        transformer_name = ''
+    else:
+        transformer_name = '_' + transformer_for_numpy_array.func.__name__
+    output_dir = os.path.join(f'{identifier}_{what_happens_to_nan}' + 
+                              f'{transformer_name}{delete_bands_str}')
     os.makedirs(output_dir, exist_ok = True)
 
     # statistical dictionary for output information
@@ -105,11 +117,20 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
             # channel dimension is doubled
             if what_happens_to_nan == 'apply_nan_mask':
                 mask = (~np.isnan(array)).astype(array.dtype)
-                array = np.concatenate((array, mask), axis=2) #TODO: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
+                array = np.concatenate((array, mask), axis=0) #TODO: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
 
             # array is saved as .npy-file in dedicated folder
             amount_of_samples += 1 # counter for samples
-            np.save(os.path.join(output_dir, f'{tree_type}-{s_}.npy'), array, allow_pickle=False)
+
+            # output path of array
+            output_path = os.path.join(output_dir, f'{tree_type}-{s_}')
+            np.save(output_path+'.npy', array, allow_pickle=False)
+
+            # data augmentation
+            if (transformers_data_augmentation is not None) and (transformer_for_numpy_array is None):
+                data_augmentation(array, transformers_data_augmentation, output_path)
+                amount_of_samples += len(transformers_data_augmentation)
+
 
         # fill statistical dictionary for output information
         sample_information[tree_type] = amount_of_samples
@@ -123,6 +144,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
               f'\nChosen processing method: {what_happens_to_nan}' +
               f'\nNot considered bands: {bands_to_delete}' +
               f'\nTransformer: {transformer_for_numpy_array}' +
+              f'\nAugmentation Transformer: {transformers_data_augmentation}' +
               f'\nTree types considered: {tree_types}' + 
               f'\nAmount of samples written: {sample_information}' +
               f'\nAmount of samples deleted: {delete_information}\n')
@@ -132,9 +154,9 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
 def sample2numpy(sample: dict, bands_to_delete: List[str], w: int=25, h: int=25, b: int=30) -> np.array:
     '''
     This function converts the geojson strcture (dicctionary) to a numpy array
-    axis = 0: height
-    axis = 1: width
-    axis = 2: channels
+    axis = 0: channels
+    axis = 1: height
+    axis = 2: width
 
     sample: dictionary structure of the geojson file
     bands_to_delete: band names that should not be written to disk
@@ -147,38 +169,79 @@ def sample2numpy(sample: dict, bands_to_delete: List[str], w: int=25, h: int=25,
         del properties[key]
 
     # fill up array
-    #TODO?: change numpy array dimensions from (h,w,b) to (b,h,w) for less confusing array visualization 
-    array = np.full((h, w, b), np.nan)
+    array = np.full((b,h,w), np.nan)
     for b_, band in enumerate(properties.values()):
         if band is None: continue       
         for r_, row in enumerate(band):
-            array[r_, :, b_] = row
-    return array
+            array[b_, :, r_] = row
+    return array.astype(np.float32)
+
+
+
+def data_augmentation(array: np.array, transforms: List[partial], output_path: str):
+    '''
+    This function performs data augmentation on the given array based on a list of transforms. For
+    each given transform, a new npy file is written with the naming convention:
+    "<output_path>-<name_of_transform>.npy"
+
+    array: array that should be augmented
+    transforms: List of transformer functions from torchvision.transforms.v2.functional
+                (https://pytorch.org/vision/stable/transforms.html#transform-classes-functionals-and-kernels)
+                that are used for data augmentation of the arrays
+    output_path: output path of array without ".npy" at the end
+    '''
+    transforms = list(set(transforms)) # only use unique transforms
+    # loop over all transforms
+    for transform in transforms:
+        transf_array = transform(torch.from_numpy(array)).numpy() # apply transform
+        transform_name = transform.func.__name__ # get name of function
+        # add name and value of function keywords
+        if len(transform.keywords):
+            for key, value in zip(transform.keywords.keys(),transform.keywords.values()):
+                transform_name = transform_name + '-' + key + '=' + str(value)
+        # save numpy file
+        np.save(f'{output_path}-{transform_name}.npy', transf_array, allow_pickle=False)
+
 
 
 ##############################
 
 
 if __name__ == "__main__":
-    identifier = 1102
+    identifier = 1123
     data_dir = 'data'
 
     bands_to_delete = ["B2"]
 
-    # Preproessing options ################
+    # PREPROCESSING OPTIONS ##################################################################################
     #what_happens_to_nan='apply_nan_mask'
     what_happens_to_nan='delete_nan_samples'
     #what_happens_to_nan='keep_nan'
 
-    # Transformer options ################
-    #transformer = None
-    transformer = partial(np.nanmean, axis=(0,1))  # mean per band excluding nan values
-    #transformer = partial(np.nanmedian, axis=(0,1)) # median per band excluding nan values
+    # TRANSFORMER ############################################################################################
+    # either use transformer_for_numpy_array or transformers_data_augmentation
 
+    # transformer_for_numpy_array
+    transformer = None
+    #transformer = partial(np.nanmean, axis=(1,2))  # mean per band excluding nan values
+    #transformer = partial(np.nanmedian, axis=(1,2)) # median per band excluding nan values
+
+    # transformers_data_augmentation
+    # see https://pytorch.org/vision/stable/transforms.html#transform-classes-functionals-and-kernels
+    # only use functional functions!
+    from torchvision.transforms.v2 import functional
+    data_aug_transformers = [partial(functional.horizontal_flip),
+                             partial(functional.vertical_flip),
+                             partial(functional.rotate, angle=180)]
+
+    # PREPROCESSING ########################################################################################
     preprocess_geojson_files(identifier, data_dir, what_happens_to_nan, bands_to_delete, 
-                             transformer_for_numpy_array=transformer)
+                             transformer_for_numpy_array=transformer, transformers_data_augmentation=data_aug_transformers)
 
     # Checking one sample
-    arr = np.load(r'data/1102_delete_nan_samples_B2/Abies_alba-21.npy')
-    print(arr)
-    print(arr.shape)
+    #arr = np.load(r'data/1102_delete_nan_samples_B2/Abies_alba-21.npy')
+    #arr2 = np.load(r'data/1102_delete_nan_samples_B2/Abies_alba-21-rotate-angle=180.npy')
+    #print(arr[0,:,:])
+    #print(arr2[0,:,:])
+    #print(arr.shape)
+    #print(arr2.shape)
