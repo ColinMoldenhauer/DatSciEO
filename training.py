@@ -187,6 +187,7 @@ for i_epoch in range(N_epochs):
             'loss': loss,
             }, checkpoint_file)
     
+    # TODO: confusion matrix -> maybe in test?
     # TODO: write best
     # TODO: load checkpoint: https://pytorch.org/tutorials/beginner/saving_loading_models.html
 

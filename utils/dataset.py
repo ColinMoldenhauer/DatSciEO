@@ -264,9 +264,10 @@ class TreeClassifPreprocessedDataset(Dataset):
         super().__init__()
         self.data_dir = data_dir
         self.torchify = torchify
-        self.files = np.array(os.listdir(data_dir))[indices].tolist() if indices else os.listdir(data_dir)
+        filelist = np.array(os.listdir(data_dir))[indices].tolist() if indices else os.listdir(data_dir)
+        self.files = [file_ for file_ in filelist if file_.endswith(".npy")]
 
-        self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir)]))
+        self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir) if file_.endswith(".npy")]))
         self._set_dimensions()
 
     def __len__(self):
