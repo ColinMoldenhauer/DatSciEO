@@ -31,6 +31,9 @@ verbose = True
 run_dir = f"runs/{time.strftime('%Y%m%d-%Hh%Mm%Ss', time.localtime())}"
 checkpoint_dir = os.path.join(run_dir, "checkpoints")
 
+os.makedirs(run_dir, exist_ok=True)
+os.makedirs(checkpoint_dir, exist_ok=True)
+
 # create datasets and dataloaders
 dataset_dir = "data/1123_top10/1123_delete_nan_samples_"
 splits = [.7, .3]
@@ -175,8 +178,8 @@ for i_epoch in range(N_epochs):
     writer.add_scalar("val/loss", loss_val_avg, i_epoch)
     writer.add_scalar("val/accuracy", accuracy_val, i_epoch)
 
-
     checkpoint_file = os.path.join(checkpoint_dir, f"epoch_{i_epoch}")
+    if verbose: print(f"Saving current state to '{checkpoint_file}'")
     torch.save({
             'epoch': i_epoch,
             'model_state_dict': model.state_dict(),
