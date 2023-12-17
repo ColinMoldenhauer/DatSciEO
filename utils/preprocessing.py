@@ -34,7 +34,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
                                                    (https://pytorch.org/vision/stable/transforms.html#transform-classes-functionals-and-kernels)
                                                    that used for data augmentation of the arrays. Not applied if <transformer_for_numpy_array> is not None.
 
-    The arrays are written as .npy-files with the naming convetion:
+    The arrays are written as .npy-files with the naming convention:
     "<label>-<index>-<name_of_transformer_data_augmentation>.npy"
     to disk in certain folders, whereas "-<name_of_transformer_data_augmentation>" is not added for no augmentation transforms. 
     The folders have the following naming convention:
@@ -196,8 +196,8 @@ def data_augmentation(array: np.array, transforms: List[partial], output_path: s
         transf_array = transform(torch.from_numpy(array)).numpy() # apply transform
         transform_name = transform.func.__name__ # get name of function
         # add name and value of function keywords
-        if len(transform.keywords):
-            for key, value in zip(transform.keywords.keys(),transform.keywords.values()):
+        if transform.keywords:
+            for key, value in transform.keywords.items():
                 transform_name = transform_name + '-' + key + '=' + str(value)
         # save numpy file
         np.save(f'{output_path}-{transform_name}.npy', transf_array, allow_pickle=False)
