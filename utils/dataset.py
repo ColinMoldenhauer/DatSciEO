@@ -2,6 +2,7 @@ import json
 import os
 import glob
 import re
+from typing import Iterable
 from matplotlib.container import BarContainer
 
 import matplotlib.pyplot as plt
@@ -250,7 +251,7 @@ class TreeClassifDataset(Dataset):
 
 # TODO: add band information?
 class TreeClassifPreprocessedDataset(Dataset):
-    def __init__(self, data_dir, torchify=False, indices=None):
+    def __init__(self, data_dir:str, torchify:bool=False, indices:Iterable=None):
         """
         A dataset class for the Tree Classification task.
         Samples need to be created using preprocessing.preprocess_geojson_files() first.
@@ -264,8 +265,10 @@ class TreeClassifPreprocessedDataset(Dataset):
         super().__init__()
         self.data_dir = data_dir
         self.torchify = torchify
-        filelist = np.array(os.listdir(data_dir))[indices].tolist() if indices else os.listdir(data_dir)
-        self.files = [file_ for file_ in filelist if file_.endswith(".npy")]
+
+        self.files = [file_ for file_ in os.listdir(data_dir) if file_.endswith(".npy")]
+        if indices: self.files = [self.files[idx] for idx in indices]
+
 
         self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir) if file_.endswith(".npy")]))
         self._set_dimensions()

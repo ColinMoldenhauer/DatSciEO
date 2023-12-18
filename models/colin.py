@@ -22,23 +22,9 @@ class TreeClassifConvNet(nn.Module):
             nn.Flatten(),
             nn.Linear(5*5*5, n_classes)
         )
-
-        self.conv1 = nn.Conv2d(depth, depth//2, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(depth//2, depth//4, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(depth//4, 5, kernel_size=3, padding=1)
-        self.fc = nn.Linear(5*5*5, n_classes)
-    
+        
 
     def forward(self, x):
-        # x = self.conv1(x)
-        # x = nn.ReLU()(x)
-        # x = self.conv2(x)
-        # x = nn.ReLU()(x)
-        # x = self.conv3(x)
-        # x = nn.ReLU()(x)
-        # x = nn.Flatten()(x)
-        # x = self.fc(x)
-
         return self.model(x)
 
 
