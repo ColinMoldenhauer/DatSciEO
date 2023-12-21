@@ -6,14 +6,14 @@ import json
 from functools import partial
 import torch
 
-from typing import List
+from typing import List, Callable
 
 from utils import determine_dimensions, file_to_tree_type_name
 
 
 ##############################
 def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan: str='keep_nan', bands_to_delete: List[str]=[], 
-                             transformer_for_numpy_array: partial = None, transformers_data_augmentation: List[partial] = None,
+                             transformer_for_numpy_array: partial = None, transformers_data_augmentation: List[Callable|partial] = None,
                              verbose: bool=True):
     '''
     This function preprocesses the geojson files. The big goal is to create a numpy array for each sample and store them 
@@ -178,7 +178,7 @@ def sample2numpy(sample: dict, bands_to_delete: List[str], w: int=25, h: int=25,
 
 
 
-def data_augmentation(array: np.array, transforms: List[partial], output_path: str):
+def data_augmentation(array: np.array, transforms: List[Callable|partial], output_path: str):
     '''
     This function performs data augmentation on the given array based on a list of transforms. For
     each given transform, a new npy file is written with the naming convention:
@@ -194,15 +194,15 @@ def data_augmentation(array: np.array, transforms: List[partial], output_path: s
     # loop over all transforms
     for transform in transforms:
         transf_array = transform(torch.from_numpy(array)).numpy() # apply transform
+
         transform_name = transform.func.__name__ # get name of function
+        if isinstance(transform, partial):
         # add name and value of function keywords
-        if transform.keywords:
-            for key, value in transform.keywords.items():
-                transform_name = transform_name + '-' + key + '=' + str(value)
+            if transform.keywords:
+                for key, value in transform.keywords.items():
+                    transform_name += '-' + key + '=' + str(value)
         # save numpy file
         np.save(f'{output_path}-{transform_name}.npy', transf_array, allow_pickle=False)
-
-
 
 ##############################
 
@@ -230,8 +230,8 @@ if __name__ == "__main__":
     # see https://pytorch.org/vision/stable/transforms.html#transform-classes-functionals-and-kernels
     # only use functional functions!
     from torchvision.transforms.v2 import functional
-    data_aug_transformers = [partial(functional.horizontal_flip),
-                             partial(functional.vertical_flip),
+    data_aug_transformers = [functional.horizontal_flip,
+                             functional.vertical_flip,
                              partial(functional.rotate, angle=180)]
 
     # PREPROCESSING ########################################################################################
