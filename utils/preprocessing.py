@@ -195,12 +195,14 @@ def data_augmentation(array: np.array, transforms: List[Callable|partial], outpu
     for transform in transforms:
         transf_array = transform(torch.from_numpy(array)).numpy() # apply transform
 
-        transform_name = transform.func.__name__ # get name of function
         if isinstance(transform, partial):
-        # add name and value of function keywords
+            transform_name = transform.func.__name__ # get name of function
+            # add name and value of function keywords
             if transform.keywords:
                 for key, value in transform.keywords.items():
                     transform_name += '-' + key + '=' + str(value)
+        else:
+          transform_name = transform.__name__
         # save numpy file
         np.save(f'{output_path}-{transform_name}.npy', transf_array, allow_pickle=False)
 
