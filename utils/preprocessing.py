@@ -137,7 +137,7 @@ def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan
         delete_information[tree_type] = amount_of_samples_deleted
         
         if verbose:
-            print(f'\n<{tree_type}> {amount_of_samples} samples written to disk.')
+            print(f'<{tree_type:<30}> {amount_of_samples} samples written to disk.')
 
     if verbose:
         print(f'\nIdentifier: {identifier}' + 

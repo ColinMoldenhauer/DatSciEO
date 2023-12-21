@@ -18,3 +18,10 @@ provided reference data
 - Create an environment by typing `conda create --name <name> python=3.10`
 - Activate the environment by typing `conda activate <name>`
 - Run the command `pip install -r requirements.txt`
+
+## Results
+| Model        | Dataset   | Accuracy |
+|--------------|-----------|------------|
+| SVM (Handeul) | top10 <br> - split 0.8/0.2 <br> - mode?      | 47.22 %       |
+| KNN (Yi) | top10 <br> - split ? <br> - mode?      | 40 %       |
+| MLP (Yi) | top10 <br> - split ? <br> - mode?      | 22 %       |
