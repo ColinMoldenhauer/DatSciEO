@@ -10,6 +10,14 @@ RUN pip install tensorboard
 RUN pip install torch
 RUN pip install torchvision
 
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update && \
+  apt install -y tmux && \
+  apt install -y openssh-server && \
+  service ssh start && \
+  tmux new-session -s colin -d
+
 # bake repository into dockerfile
 RUN mkdir -p ./data
 RUN mkdir -p ./models
