@@ -86,8 +86,10 @@ assert device == "cuda", "GPU not working, please check."
 
 # where to save training progress info and checkpoints
 run_dir = os.path.join(run_root, f"{time.strftime('%Y%m%d', time.localtime())}_{model.__class__.__name__}_lr_{learning_rate:.0e}_bs_{batch_size}")
+info_dir = os.path.join(run_dir, "info")
 checkpoint_dir = os.path.join(run_dir, "checkpoints")
 os.makedirs(run_dir, exist_ok=True)
+os.makedirs(info_dir, exist_ok=True)
 os.makedirs(checkpoint_dir, exist_ok=True)
 
 # write some info to run directory
@@ -102,10 +104,10 @@ info = {
     "indices train": ds_train.indices,
     "indices val": ds_val.indices,
 }
-with open(os.path.join(run_dir, "info.json"), "w") as f_info:
+with open(os.path.join(info_dir, "info.json"), "w") as f_info:
     json.dump(info, f_info)
 
-writer = SummaryWriter(run_dir)
+writer = SummaryWriter(info_dir)
 
 t0 = time.time()
 last_info = t0
@@ -221,7 +223,7 @@ for i_epoch in range(start_epoch, N_epochs):
             }, checkpoint_file)
     
     if loss_val_avg < best_loss:
-        checkpoint_file = os.path.join(checkpoint_dir, f"best.pth")
+        checkpoint_file = os.path.join(info_dir, f"best.pth")
         if verbose: print(f"Saving current best state to '{checkpoint_file}'\n")
         torch.save({
                 "epoch": i_epoch,
