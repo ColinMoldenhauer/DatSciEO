@@ -33,12 +33,12 @@ verbose = True
 
 # path to checkpoint to resume training from, leave blank for training from scratch
 resume = ""
-dataset_info = "1123_top10/1123_delete_nan_samples"     # just for info purposes, because in docker, data is directly in ./data
-
+dataset_dir = "data/1123_delete_nan_samples"     # just for info purposes, because in docker, data is directly in ./data
+run_root = "/seminar/datscieo-0/colin/runs"
 
 ######## DATA
 # create datasets and dataloaders
-dataset = TreeClassifPreprocessedDataset("data")
+dataset = TreeClassifPreprocessedDataset(dataset_dir)
 
 # split the dataset into train and validation
 splits = [.7, .3]
@@ -85,14 +85,14 @@ assert device == "cuda", "GPU not working, please check."
 ################# TRAINING LOOP #############
 
 # where to save training progress info and checkpoints
-run_dir = os.path.join("/seminar/datscieo-0/colin/runs", f"{time.strftime('%Y%m%d', time.localtime())}_{model.__class__.__name__}_lr_{learning_rate:.0e}_bs_{batch_size}")
+run_dir = os.path.join(run_root, f"{time.strftime('%Y%m%d', time.localtime())}_{model.__class__.__name__}_lr_{learning_rate:.0e}_bs_{batch_size}")
 checkpoint_dir = os.path.join(run_dir, "checkpoints")
 os.makedirs(run_dir, exist_ok=True)
 os.makedirs(checkpoint_dir, exist_ok=True)
 
 # write some info to run directory
 info = {
-    "dataset": dataset_info,
+    "dataset": dataset_dir,
     "learning rate": learning_rate,
     "batch size": batch_size,
     "model": model.__class__.__name__,
@@ -184,7 +184,7 @@ for i_epoch in range(start_epoch, N_epochs):
             pred_val = model(x)
 
             pred_class = np.argmax(pred_val.cpu().numpy(), axis=1)
-            correct == (pred_class == y.cpu().numpy()).sum()
+            correct += (pred_class == y.cpu().numpy()).sum()
 
             loss_val = loss_fn(pred_val, y)
             running_loss_val += loss_val

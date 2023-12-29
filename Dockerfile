@@ -18,7 +18,7 @@ RUN mkdir -p ./models
 RUN mkdir -p ./runs
 RUN mkdir -p ./utils
 
-ADD data/1123_top10/1123_delete_nan_samples ./data
+ADD data/1123_top10/1123_delete_nan_samples ./data/1123_delete_nan_samples
 ADD models ./models
 ADD utils ./utils
 ADD training.ipynb test.ipynb training.py entry.sh ./
