@@ -1,7 +1,7 @@
-# TODO: confusion matrix -> maybe in test?
 # TODO: validate class balance after splits
 # TODO: introduce sampler?
 # TODO: change !unzip to subprocess?
+# TODO: visualize tensorboard on server?
 
 
 import datetime
@@ -9,9 +9,11 @@ import json
 import os
 import time
 
+from argparse import ArgumentParser
+
 import numpy as np
 
-from models import TreeClassifConvNet, TreeClassifResNet50
+import models
 from utils import TreeClassifPreprocessedDataset
 
 from sklearn.metrics import accuracy_score
@@ -21,24 +23,42 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 
+parser = ArgumentParser()
+parser.add_argument("-e", "--epochs", type=int, default=100)
+parser.add_argument("-b", "--batch_size", type=int, default=40)
+parser.add_argument("-l", "--learning_rate", type=float, default=1e-4)
+parser.add_argument("-v", "--verbose", type=bool, default=True)
+
+parser.add_argument("-d", "--dataset_dir", type=str, default="data/1123_delete_nan_samples")
+parser.add_argument("-i", "--indices", type=str, default="")
+
+parser.add_argument("-m", "--model", type=str, default="TreeClassifResNet50")
+parser.add_argument("-r", "--resume", type=str, default="")
+
+parser.add_argument("-R", "--run_root", type=str, default="/seminar/datscieo-0/colin/runs")
+parser.add_argument("--run_name", type=str, default="")
+
+
+args = parser.parse_args()
+
 
 ################# SETTINGS ##################
 ######## GENERAL
 
 # general training settings
-N_epochs = 100
-batch_size = 40
-learning_rate = 1e-4
-verbose = True
+N_epochs = args.epochs
+batch_size = args.batch_size
+learning_rate = args.learning_rate
+verbose = args.verbose
 
 # path to checkpoint to resume training from, leave blank for training from scratch
-resume = ""
-dataset_dir = "data/1123_delete_nan_samples"     # just for info purposes, because in docker, data is directly in ./data
-run_root = "/seminar/datscieo-0/colin/runs"
+resume = args.resume
+dataset_dir = args.dataset_dir
+run_root = args.run_root
 
 ######## DATA
 # create datasets and dataloaders
-dataset = TreeClassifPreprocessedDataset(dataset_dir)
+dataset = TreeClassifPreprocessedDataset(dataset_dir, indices=eval(args.indices) if args.indices else None)
 
 # split the dataset into train and validation
 splits = [.7, .3]
@@ -48,17 +68,16 @@ ds_train, ds_val = random_split(dataset, splits, generator=torch.Generator().man
 dl_train = DataLoader(ds_train, batch_size, shuffle=True)
 dl_val = DataLoader(ds_val, batch_size, shuffle=True)
 
-if verbose: print(
-    f"\nUsing dataset with properties:\n"       \
-    f"\tsamples:    {len(dataset)}\n"              \
-    f"\t   train:   {len(ds_train)}\n"             \
-    f"\t   val:     {len(ds_val)}\n"               \
-    f"\tshape: {dataset[0][0].shape}\n"         \
-    )
+dataset_info = f"\nUsing dataset with properties:\n"    \
+    f"\tsamples:    {len(dataset)}\n"                   \
+    f"\t   train:   {len(ds_train)}\n"                  \
+    f"\t   val:     {len(ds_val)}\n"                    \
+    f"\tshape: {dataset[0][0].shape}\n"
+if verbose: print(dataset_info)
 
 
 ######## MODEL
-model = TreeClassifResNet50(
+model = getattr(models, args.model)(
     n_classes = dataset.n_classes,
     width = dataset.width,
     height = dataset.height,
@@ -78,14 +97,15 @@ if verbose:
 
 # device check
 print("device:", device)
-assert device == "cuda", "GPU not working, please check."
+# assert device == "cuda", "GPU not working, please check."
 
 
 
 ################# TRAINING LOOP #############
 
 # where to save training progress info and checkpoints
-run_dir = os.path.join(run_root, f"{time.strftime('%Y%m%d', time.localtime())}_{model.__class__.__name__}_lr_{learning_rate:.0e}_bs_{batch_size}")
+run_name = args.run_name or f"{time.strftime('%Y%m%d', time.localtime())}_{model.__class__.__name__}_lr_{learning_rate:.0e}_bs_{batch_size}"
+run_dir = os.path.join(run_root, run_name)
 info_dir = os.path.join(run_dir, "info")
 checkpoint_dir = os.path.join(run_dir, "checkpoints")
 os.makedirs(run_dir, exist_ok=True)
@@ -95,6 +115,7 @@ os.makedirs(checkpoint_dir, exist_ok=True)
 # write some info to run directory
 info = {
     "dataset": dataset_dir,
+    "dataset_info": dataset_info,
     "learning rate": learning_rate,
     "batch size": batch_size,
     "model": model.__class__.__name__,

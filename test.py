@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import datetime
 import json
 import os
@@ -5,32 +6,45 @@ import time
 
 import numpy as np
 
-from models import TreeClassifConvNet, TreeClassifResNet50
+import models
 from utils import TreeClassifPreprocessedDataset
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from torch.utils.tensorboard import SummaryWriter
 
+
+parser = ArgumentParser()
+parser.add_argument("run_id", type=str)
+group = parser.add_mutually_exclusive_group()
+group.add_argument("epoch", type=int)
+group.add_argument("checkpoint", type=str)
+parser.add_argument("-R", "--run_root", type=str, default="/seminar/datscieo-0/colin/runs")
+parser.add_argument("-d", "--dataset_dir", type=str, default="data/1123_delete_nan_samples")
+parser.add_argument("-i", "--indices", type=str, default="")
+parser.add_argument("-m", "--model", type=str, default="TreeClassifResNet50")
+
+parser.add_argument("-b", "--batch_size", type=int, default=40)
+parser.add_argument("-v", "--verbose", type=bool, default=True)
+
+args = parser.parse_args()
 
 
 ################# SETTINGS ##################
 ######## GENERAL
 run_id = "20231229_TreeClassifResNet50"
 run_id = "20231220-20h53m17s_97epochs"
-checkpoint_epoch = 100
-checkpoint_epoch = 96
-batch_size_test = 5
+run_id = args.run_id
+checkpoint_epoch = args.epoch
+batch_size_test = args.batch_size
 verbose = True
 
 ######## DATA
 # create datasets and dataloaders
-dataset_dir = os.path.join("data", "1123_top10/1123_delete_nan_samples")
-dataset = TreeClassifPreprocessedDataset(dataset_dir, indices=range(100))
+dataset_dir = args.dataset_dir
+dataset = TreeClassifPreprocessedDataset(dataset_dir, indices=eval(args.indices) if args.indices else None)
 
 # at this point, perform prediction on validation split, later use real test set
 splits = [.7, .3]
@@ -47,11 +61,11 @@ if verbose: print(
 
 ######## MODEL
 # model = TreeClassifResNet50(
-model = TreeClassifConvNet(
-    n_classes = ds_test.n_classes,
-    width = ds_test.width,
-    height = ds_test.height,
-    depth = ds_test.depth
+model = getattr(models, args.model)(
+    n_classes = dataset.n_classes,
+    width = dataset.width,
+    height = dataset.height,
+    depth = dataset.depth
 )
 
 if verbose:
@@ -60,8 +74,8 @@ if verbose:
 #############################################
 
 
-checkpoint = torch.load(os.path.join("runs", run_id, "checkpoints", f"epoch_{checkpoint_epoch}.pth"))
-output_dir = os.path.join("runs", run_id, "eval")
+checkpoint = torch.load(os.path.join(args.run_root, run_id, "checkpoints", f"epoch_{checkpoint_epoch}.pth"))
+output_dir = os.path.join(args.run_root, run_id, "eval")
 os.makedirs(output_dir, exist_ok=True)
 
 model.load_state_dict(checkpoint["model_state_dict"])
