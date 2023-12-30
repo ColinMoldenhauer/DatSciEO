@@ -18,9 +18,9 @@ from torch.utils.data import DataLoader, random_split
 
 parser = ArgumentParser()
 parser.add_argument("run_id", type=str)
-group = parser.add_mutually_exclusive_group()
-group.add_argument("epoch", type=int)
-group.add_argument("checkpoint", type=str)
+group = parser.add_mutually_exclusive_group(required=True)
+group.add_argument("--epoch", type=int)
+group.add_argument("--checkpoint", type=str)
 parser.add_argument("-R", "--run_root", type=str, default="/seminar/datscieo-0/colin/runs")
 parser.add_argument("-d", "--dataset_dir", type=str, default="data/1123_delete_nan_samples")
 parser.add_argument("-i", "--indices", type=str, default="")
@@ -30,7 +30,6 @@ parser.add_argument("-b", "--batch_size", type=int, default=40)
 parser.add_argument("-v", "--verbose", type=bool, default=True)
 
 args = parser.parse_args()
-
 
 ################# SETTINGS ##################
 ######## GENERAL
