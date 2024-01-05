@@ -239,6 +239,7 @@ for i_epoch in range(start_epoch, N_epochs):
             "train_loss": loss_avg,
             "val_loss": loss_val_avg,
             "best_loss": best_loss,
+            "best_accuracy": accuracy_val,
             "run_dir": run_dir,
             "checkpoint_dir": checkpoint_dir
             }, checkpoint_file)
@@ -253,6 +254,7 @@ for i_epoch in range(start_epoch, N_epochs):
                 "train_loss": loss_avg,
                 "val_loss": loss_val_avg,
                 "best_loss": best_loss,
+                "best_accuracy": accuracy_val,
                 "run_dir": run_dir,
                 "checkpoint_dir": checkpoint_dir
                 }, checkpoint_file)
