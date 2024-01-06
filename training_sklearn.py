@@ -45,22 +45,24 @@ scaler = StandardScaler() # scaler for input data. If none is required, put scal
 # Sklearn model parameters -----------------------------------------
 model = RandomForestClassifier() # sklearn model
 params = {'n_jobs' : -1,
-          'random_state': random_seed,
-          'bootstrap': False,
-          'max_depth': 20,
-          'min_samples_leaf': 2,
-          'min_samples_split': 2,
-          'n_estimators': 100} # fixed hyperparam.
+          'random_state': random_seed,}
+'''
+'bootstrap': False,
+'max_depth': 20,
+'min_samples_leaf': 2,
+'min_samples_split': 2,
+'n_estimators': 100} # fixed hyperparam.
+'''
 
 # Random Grid Search Parameters ------------------------------------
 # if no random grid search is desired, random_grid should be an empty dicctionary
-n_optimizations = 10 # number of parameter settings that are sampled. n_iter trades off runtime vs quality of the solution.
+n_optimizations = 30 # number of parameter settings that are sampled. n_iter trades off runtime vs quality of the solution.
 random_grid = {'bootstrap': [True, False],
                'max_depth': [10, 20, 50, 100, None],
                'min_samples_leaf': [1, 2, 4],
                'min_samples_split': [2, 5, 10],
-               'n_estimators': [100, 150, 200, 250, 300, 350, 400, 450, 500]} # hyperparameter to be optimized by random grid search
-random_grid = {}
+               'n_estimators': [50, 100, 150, 200, 250, 300, 350, 400, 450, 500]} # hyperparameter to be optimized by random grid search
+#random_grid = {}
 scores = 'accuracy' # score to define best model according to hyperparameter optimization; 
 # see https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
 

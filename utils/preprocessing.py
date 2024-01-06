@@ -210,10 +210,11 @@ def data_augmentation(array: np.array, transforms: List[Callable|partial], outpu
 
 
 if __name__ == "__main__":
-    identifier = 1123
+    identifier = 1102
     data_dir = 'data'
 
-    bands_to_delete = ["B2"]
+    bands_to_delete = ['B11_2', 'B12_2', 'B2_2', 'B3_2', 'B4_2',
+                       'B5_2', 'B6_2', 'B7_2', 'B8A_2', 'B8_2']
 
     # PREPROCESSING OPTIONS ##################################################################################
     #what_happens_to_nan='apply_nan_mask'
