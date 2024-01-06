@@ -1,0 +1,22 @@
+Results
+
+SVM
+Accuracy: 44.40%
+Cohen's Kappa: 0.3044
+Precision: 0.3315
+Recall: 0.4440
+calculation time : 13.145 seconds
+
+DRNN
+Accuracy: 36.44%
+Cohen's Kappa: 0.2009
+Precision: 0.6073
+Recall: 0.3644
+calculation time : 27.806 seconds
+
+FCNN
+Accuracy: 38.54%
+Cohen's Kappa: 0.2376
+Precision: 0.2886
+Recall: 0.3854
+calculation time : 14.099 seconds

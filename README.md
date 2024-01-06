@@ -22,6 +22,8 @@ provided reference data
 ## Results
 | Model        | Dataset   | Accuracy |
 |--------------|-----------|------------|
-| SVM (Handeul) | top10 <br> - split 0.8/0.2 <br> - mode?      | 47.22 %       |
+| SVM (Handeul) | top10 <br> - split 0.8/0.2 <br> - mode?      | 44.4 %       |
+| DRNN (Handeul) | top10 <br> - split 0.8/0.2 <br> - mode?      | 36.44 %       |
+| FCNN (Handeul) | top10 <br> - split 0.8/0.2 <br> - mode?      | 38.54 %       |
 | KNN (Yi) | top10 <br> - split ? <br> - mode?      | 40 %       |
 | MLP (Yi) | top10 <br> - split ? <br> - mode?      | 22 %       |

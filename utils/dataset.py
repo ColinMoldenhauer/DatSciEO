@@ -287,11 +287,23 @@ class TreeClassifPreprocessedDataset(Dataset):
             data = np.moveaxis(data, [0,1,2], [2,1,0])
         return data, class_idx
     
+#    def _set_dimensions(self):
+#        x = np.load(os.path.join(self.data_dir, self.files[0]))
+#        self.width, self.height, self.depth = x.shape
+#        self.n_classes = len(self.classes)
     def _set_dimensions(self):
-        x = np.load(os.path.join(self.data_dir, self.files[0]))
-        self.width, self.height, self.depth = x.shape
-        self.n_classes = len(self.classes)
-    
+        try:
+            x = np.load(os.path.join(self.data_dir, self.files[0]))
+            if len(x.shape) == 3:
+                self.width, self.height, self.depth = x.shape
+                self.n_classes = len(self.classes)
+            else:
+                # Set default values or handle this case as appropriate for your application
+                self.width, self.height, self.depth = 0, 0, 0
+                self.n_classes = 0
+        except Exception as e:
+            # Handle exceptions, e.g., print an error message or raise an exception
+            print(f"Error setting dimensions: {e}")
     def labelname_to_label(self, labelname):
         return self.classes.index(labelname)
     
@@ -338,8 +350,10 @@ if __name__ == "__main__":
     # test histogram
     # ds.band_nan_histogram()
 
-    dsp = TreeClassifPreprocessedDataset("data/1102_apply_nan_mask_B2")
+    dsp = TreeClassifPreprocessedDataset("data/1102_delete_nan_samples_B2")
     x0, y0 = dsp[0]
+    print("dataset shape:", len(dsp))
+    print("dataset sample:", type(dsp[0]))
     print("data shape:", x0.shape)
     print("label:", y0)
     print("labelname:", dsp.label_to_labelname(y0))
