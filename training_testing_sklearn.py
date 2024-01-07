@@ -43,7 +43,6 @@ def train_sklearn_classifier(model: Callable, model_params: dict, dataset: TreeC
                     <random_grid_params_optim> is not None. Default: accuracy.
     verbose: If True, information is printed. Highly recommended to set it to True. Default: True.
     random_seed: random seed for reproducibility
-
     '''
 
 
@@ -75,7 +74,7 @@ def train_sklearn_classifier(model: Callable, model_params: dict, dataset: TreeC
         f"\t\ttrain: {len(X_train)}\n"             \
         f"\t\ttest:  {len(X_test)}\n"               \
         f"\tshape: {dataset[0][0].shape}\n"         \
-        f"\tscaling: {True if scaler is not None else False}\n"         \
+        f"\tscaling: {scaler.__class__.__name__ if scaler is not None else False}\n"         \
         )
 
     if verbose: print(
@@ -135,7 +134,7 @@ def train_sklearn_classifier(model: Callable, model_params: dict, dataset: TreeC
         if verbose: print(f"Saving used scaler to '{os.path.join(output_path, output_name + '_scaler.joblib')}'")
 
     disp = ConfusionMatrixDisplay.from_predictions(y_test, y_pred, display_labels = labels, xticks_rotation = 'vertical')#, display_labels=dataset.classes)
-    plt.title('Confusion Matrix')
+    plt.title('Confusion Matrix Training')
     plt.tight_layout()
     plt.show()
 
@@ -143,6 +142,13 @@ def train_sklearn_classifier(model: Callable, model_params: dict, dataset: TreeC
 
 
 def test_sklearn_classifier(model_path: str, dataset: TreeClassifPreprocessedDataset, scaler_path: str | None = None):
+    '''
+    This function trains a given sklearn classifier from a given pytorch dataset, and saves the model as joblib-file. Random grid search is enabled.
+
+    model_path: path to saved sklearn model as joblib file
+    dataset: dataset in the form of a list of tuples consisting of two values: data and label
+    scaler_path: path to saved sklearn scaler as joblib file. If None, scaler is not applied. Default: None
+    '''
     
     # load model
     loaded_model = load(model_path)
@@ -188,7 +194,7 @@ def test_sklearn_classifier(model_path: str, dataset: TreeClassifPreprocessedDat
 
 
     disp = ConfusionMatrixDisplay.from_predictions(y, y_pred, display_labels = labels, xticks_rotation = 'vertical')#, display_labels=dataset.classes)
-    plt.title('Confusion Matrix')
+    plt.title('Confusion Matrix Testing')
     plt.tight_layout()
     plt.show()
 
@@ -248,7 +254,7 @@ if __name__ == '__main__':
 
     # Training ---------------------------------------------------------------------------------
     #-------------------------------------------------------------------------------------------
-    training = False
+    training = True
 
     if training:
         train_sklearn_classifier(model = model, model_params = params, dataset = dataset, output_path = output_path, output_name = output_name, test_size = test_size,
