@@ -210,7 +210,7 @@ def data_augmentation(array: np.array, transforms: List[Callable|partial], outpu
 
 
 if __name__ == "__main__":
-    identifier = 1102
+    identifier = 1123
     data_dir = 'data'
 
     bands_to_delete = ['B11_2', 'B12_2', 'B2_2', 'B3_2', 'B4_2',
