@@ -25,3 +25,4 @@ provided reference data
 | SVM (Handeul) | top10 <br> - split 0.8/0.2 <br> - mode?      | 47.22 %       |
 | KNN (Yi) | top10 <br> - split ? <br> - mode?      | 40 %       |
 | MLP (Yi) | top10 <br> - split ? <br> - mode?      | 22 %       |
+| CNN (Luca) | top10 <br> - split ? <br> - mode?      | 46 %       |
