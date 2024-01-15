@@ -5,12 +5,14 @@ import re
 from typing import Iterable
 from matplotlib.container import BarContainer
 
+
 import matplotlib.pyplot as plt
 import numpy as np
+from sympy import rotations
 
 from torch.utils.data import Dataset
 
-from .utils import determine_dimensions, file_to_tree_type_name, sample_file_to_tree_type
+from utils import determine_dimensions, file_to_tree_type_name, sample_file_to_tree_type
 
 
 # TODO: get ID and geometry in export
@@ -155,7 +157,7 @@ class TreeClassifDataset(Dataset):
         
         return fig
     
-    def band_nan_histogram(self, normalize_nan_sum=True):
+    def band_nan_histogram(self, normalize_nan_sum=True, individual_plots=True, show=False, savedir=""):
         """
         Visualizes the dataset's data availability.
 
@@ -163,20 +165,24 @@ class TreeClassifDataset(Dataset):
         - middle subplot: histogram of how many bands are missing per sample
         - bottom subplots: histograms of NaN occurance per layer (for our case obsolete)
         """
+        if savedir: os.makedirs(savedir, exist_ok=True)
         # collect some statistics
         empty_bands_per_class = []
         hist_all = []
         nan_all = {}
+        nan_samples = []
         for f_ in self.class_files:
             empty_bands_per_feature = []
+            nan_samples_per_class = 0
             nan_per_class = np.zeros(self.depth)
             nan_concat = None
             with open(f_) as f: collection = json.load(f)
             for feature_ in collection["features"]:
                 data = self.feature_to_numpy(feature_)
                 nan_per_band = np.isnan(data).sum(axis=(0,1))
+                if nan_per_band.sum() > 0: nan_samples_per_class += 1
                 # empty_bands = np.isnan(data).sum()
-                empty_bands = np.isnan(data).sum()/self.width/self.height
+                empty_bands = np.isnan(data).sum()/self.width/self.height   # normalize by amount of pixels per layer
                 # sum nan: either 0, 250 (one season missing), 750 (all seasons missing)
                 nan_per_class += nan_per_band
 
@@ -188,63 +194,166 @@ class TreeClassifDataset(Dataset):
                 empty_bands_per_feature.append(empty_bands)
 
             empty_bands_per_class.append(empty_bands_per_feature)
-            nan_all[self.file_to_classname(f_)]  = nan_per_class
+            nan_all[self.file_to_classname(f_)] = nan_per_class
+            nan_samples.append(nan_samples_per_class)
             hist_all.append(nan_concat)
 
         # initialize subplots
-        fig = plt.figure(figsize=(20, 10))
-        ax_bar1 = fig.add_subplot(3, 1, 1)
-        ax_bar2 = fig.add_subplot(3, 1, 2)
-        axs_hist = [fig.add_subplot(3, 3, i) for i in range(7, 10)]
+        if individual_plots:
+            # plot first plot
 
-        # plot first plot
-        x = np.arange(self.depth)  # the label locations
-        width = 0.25  # the width of the bars
-        multiplier = 0
-        norm = self.width*self.height if normalize_nan_sum else 1
+            keys = np.array(list(nan_all.keys()))   # split into multiple for better readability
+            for i, classes_ in enumerate(np.array_split(keys, len(nan_all)//3)):
+                nan_all_ = {c:nan_all[c] for c in classes_}
+                plt.figure(figsize=(12, 8))
+                x = np.arange(self.depth)  # the label locations
+                width = 0.25  # the width of the bars
+                multiplier = 0
+                norm = self.width*self.height if normalize_nan_sum else 1
 
-        for attribute, measurement in nan_all.items():
-            offset = width * multiplier
-            rects = ax_bar1.bar(x + offset, measurement/norm, width, label=attribute, align="edge")
-            ax_bar1.bar_label(rects, padding=3, rotation=90)
-            multiplier += 1
-        
-        ax_bar1.set_title("Total NaNs per band per class")
-        ax_bar1.set_xticks(x+width*len(self.classes)/2, self.bands, rotation=90)
-        ax_bar1.legend(loc='upper left')
-        ylim = ax_bar1.get_ylim()
-        ax_bar1.set_ylim(ylim[0], 1.2*ylim[1])
-        
+                for attribute, measurement in nan_all_.items():
+                    offset = width * multiplier
+                    rects = plt.bar(x + offset, measurement/norm, width, label=attribute, align="edge")
+                    plt.bar_label(rects, padding=3, rotation=90, fmt=lambda x: str(int(x)) if x else "")
+                    multiplier += 1
+                
+                
+                plt.title("Total NaNs per band per class")
+                plt.xlabel("Bands")
+                plt.ylabel("Count")
+                plt.xticks(x+width*len(nan_all_)/2, self.bands, rotation=30)
+                plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), fancybox=True, shadow=False, ncol=len(nan_all_))
+                ylim = plt.gca().get_ylim()
+                plt.ylim(ylim[0], 1.2*ylim[1])
+                plt.tight_layout()
+                if savedir: plt.savefig(os.path.join(savedir, f"plot_1_{i}.png"))
+            
 
-        # plot second plot
-        hist = ax_bar2.hist(empty_bands_per_class, bins=self.depth, align="mid")
-        for bar_container_ in hist[-1]:
-            bar_container_nonzero = self._filter_empty_bars(bar_container_)
-            ax_bar2.bar_label(bar_container_nonzero, padding=3, rotation=90)
-        
-        ax_bar2.set_xlabel("NaNs per sample")
-        ax_bar2.set_ylabel("Samples")
+            # plot second plot
+            plt.figure(figsize=(12, 8))
+            plt.title("Frequency of missing bands")
+            rwidth=0.9
+            hist = plt.hist(empty_bands_per_class, bins=self.depth, align="mid", label=self.classes, rwidth=rwidth)
+            for bar_container_ in hist[-1]:
+                bar_container_nonzero = self._filter_empty_bars(bar_container_, upper=10)
+                plt.bar_label(bar_container_nonzero, padding=3, rotation=0)
+            
+            plt.xlabel("NaN bands per sample")
+            plt.ylabel("Count")
+            plt.legend()
 
+            x0, x1 = plt.gca().get_xlim()
+            visible_ticks = [int(t) for t in plt.xticks()[0] if t>=x0 and t<=x1]
+            plt.xticks(visible_ticks + hist[2][0][0].get_width()*len(self.classes)/2, visible_ticks)
 
-        # plot third subplots
-        for i, (ax_, nan_class_) in enumerate(zip(axs_hist, hist_all)):
-            ax_.hist(nan_class_)
-            # ax_.set_title(self.classes[i])
-            ax_.legend(title=self.classes[i])
-            ax_.set_xlabel("NaNs per band")
-            ax_.set_ylabel("Samples")
+            plt.tight_layout()
+            if savedir: plt.savefig(os.path.join(savedir, "plot_2.png"))
 
-        plt.tight_layout(pad=3, h_pad=.4)
-        plt.show()
+            # plot third plot
+            for i, nan_class_ in enumerate(hist_all):
+                fig = plt.figure(figsize=(20, 10))
+                plt.hist(nan_class_)
+                plt.title(f"Frequency of NaN pixels per band ({self.classes[i]})")
+                plt.xlabel("NaN pixels per band")
+                plt.ylabel("Count")
+                plt.tight_layout()
+                if savedir: plt.savefig(os.path.join(savedir, f"plot_3_{i}.png"))
+            
+            # plot fourth plot: class distribution
+            fig = plt.figure(figsize=(20, 10))
+            plt.title("Class Distribution")
+            plt.xlabel("Species")
+            plt.ylabel("Count")
+            plt.xticks(np.arange(len(self.classes)), self.classes, rotation=45)
+            plt.bar(np.arange(len(self.classes)), list(self.samples_per_class.values()))
+            plt.tight_layout()
+            if savedir: plt.savefig(os.path.join(savedir, f"plot_class_distr.png"))
 
-    def _filter_empty_bars(self, bar_container):
+            # plot fifth plot: NaN per class
+            fig = plt.figure(figsize=(20, 10))
+            plt.title("Class Distribution")
+            plt.xlabel("Species")
+            plt.ylabel("Count")
+            width = .2
+            n_bars = 2
+            x = np.arange(len(self.classes))
+            n_samples = list(self.samples_per_class.values())
+            plt.bar(x, n_samples, width)
+            plt.bar(x+width, np.array(n_samples) - np.array(nan_samples), width)
+            plt.bar(x+2*width, nan_samples, width)
+            plt.xticks(x+width*n_bars/2, self.classes, rotation=45)
+            plt.tight_layout()
+            plt.legend(["Samples", "Samples filtered", "Samples with NaN"], fontsize="large")
+            if savedir: plt.savefig(os.path.join(savedir, f"plot_class_distr_nan.png"))
+
+            
+            # plot fourth plot: class distribution filtered
+            fig = plt.figure(figsize=(20, 10))
+            plt.title("Class Distribution (filtered)")
+            plt.xlabel("Species")
+            plt.ylabel("Count")
+            plt.xticks(np.arange(len(self.classes)), self.classes, rotation=45)
+            plt.bar(np.arange(len(self.classes)), np.array(list(self.samples_per_class.values()))-np.array(nan_samples))
+            plt.tight_layout()
+            if savedir: plt.savefig(os.path.join(savedir, f"plot_class_distr_filt.png"))
+            
+            
+        else:
+            fig = plt.figure(figsize=(20, 10))
+            ax_bar1 = fig.add_subplot(3, 1, 1)
+            ax_bar2 = fig.add_subplot(3, 1, 2)
+            axs_hist = [fig.add_subplot(3, 3, i) for i in range(7, 7+len(hist_all))]
+
+            # plot first plot
+            x = np.arange(self.depth)  # the label locations
+            width = 0.25  # the width of the bars
+            multiplier = 0
+            norm = self.width*self.height if normalize_nan_sum else 1
+
+            for attribute, measurement in nan_all.items():
+                offset = width * multiplier
+                rects = ax_bar1.bar(x + offset, measurement/norm, width, label=attribute, align="edge")
+                ax_bar1.bar_label(rects, padding=3, rotation=90)
+                multiplier += 1
+            
+            ax_bar1.set_title("Total NaNs per band per class")
+            ax_bar1.set_xticks(x+width*len(self.classes)/2, self.bands, rotation=90)
+            ax_bar1.legend(loc='upper left')
+            ylim = ax_bar1.get_ylim()
+            ax_bar1.set_ylim(ylim[0], 1.2*ylim[1])
+            
+
+            # plot second plot
+            hist = ax_bar2.hist(empty_bands_per_class, bins=self.depth, align="mid")
+            for bar_container_ in hist[-1]:
+                bar_container_nonzero = self._filter_empty_bars(bar_container_)
+                ax_bar2.bar_label(bar_container_nonzero, padding=3, rotation=90)
+            
+            ax_bar2.set_xlabel("NaNs per sample")
+            ax_bar2.set_ylabel("Samples")
+
+            # plot third subplots
+            for i, (ax_, nan_class_) in enumerate(zip(axs_hist, hist_all)):
+                ax_.hist(nan_class_)
+                ax_.legend(title=self.classes[i])
+                ax_.set_xlabel("NaNs per band")
+                ax_.set_ylabel("Samples")
+
+            plt.tight_layout(pad=3, h_pad=.4)
+
+        if show: plt.show()
+
+    def _filter_empty_bars(self, bar_container, upper=None, lower=0):
         rects = np.array([rect for rect in bar_container])
         datavalues = bar_container.datavalues
         heights = np.array([rect.get_height() for rect in rects])
-        mask_nonzero = heights > 0
+        upper = upper or heights.max()
+        mask_upper = heights < upper
+        mask_lower = heights > lower
+        mask = mask_upper & mask_lower
 
-        rects_nonzero = rects[mask_nonzero]
-        datavals_nonzero = datavalues[mask_nonzero]
+        rects_nonzero = rects[mask]
+        datavals_nonzero = datavalues[mask]
         bar_container_nonzero = BarContainer(rects_nonzero, datavalues=datavals_nonzero, orientation="vertical")
         return bar_container_nonzero
 
@@ -315,6 +424,100 @@ class TreeClassifPreprocessedDataset(Dataset):
         
         return fig
 
+    def band_nan_histogram(self, normalize_nan_sum=True):
+        """
+        Visualizes the dataset's data availability.
+
+        - top subplot: number of samples per class and band that are missing
+        - middle subplot: histogram of how many bands are missing per sample
+        - bottom subplots: histograms of NaN occurance per layer (for our case obsolete)
+        """
+        # collect some statistics
+        empty_bands_per_class = []
+        hist_all = []
+        nan_all = {}
+        for class_ in self.classes:
+            indices_per_class_ = [i for i, f_ in enumerate(self.files) if f_.startswith(class_)]
+            empty_bands_per_feature = []
+            nan_per_class = np.zeros(self.depth)
+            nan_concat = None
+            for idx_ in indices_per_class_:
+                data = self[idx_][0]
+                print("data:", data.shape)
+                print("depth:", self.depth)
+                nan_per_band = np.isnan(data).sum(axis=(0,1))
+                empty_bands = np.isnan(data).sum()/self.width/self.height
+                # sum nan: either 0, 250 (one season missing), 750 (all seasons missing)
+                nan_per_class += nan_per_band
+
+                if nan_concat is None:
+                    nan_concat = nan_per_band
+                else:
+                    nan_concat = np.vstack((nan_concat, nan_per_band))
+
+                empty_bands_per_feature.append(empty_bands)
+
+            empty_bands_per_class.append(empty_bands_per_feature)
+            nan_all[class_] = nan_per_class
+            hist_all.append(nan_concat)
+
+        # initialize subplots
+        fig = plt.figure(figsize=(20, 10))
+        ax_bar1 = fig.add_subplot(3, 1, 1)
+        ax_bar2 = fig.add_subplot(3, 1, 2)
+        axs_hist = [fig.add_subplot(3, 3, i) for i in range(7, 10)]
+
+        # plot first plot
+        x = np.arange(self.depth)  # the label locations
+        width = 0.25  # the width of the bars
+        multiplier = 0
+        norm = self.width*self.height if normalize_nan_sum else 1
+
+        for attribute, measurement in nan_all.items():
+            offset = width * multiplier
+            rects = ax_bar1.bar(x + offset, measurement/norm, width, label=attribute, align="edge")
+            ax_bar1.bar_label(rects, padding=3, rotation=90)
+            multiplier += 1
+        
+        ax_bar1.set_title("Total NaNs per band per class")
+        ax_bar1.set_xticks(x+width*len(self.classes)/2, self.bands, rotation=90)
+        ax_bar1.legend(loc='upper left')
+        ylim = ax_bar1.get_ylim()
+        ax_bar1.set_ylim(ylim[0], 1.2*ylim[1])
+        
+
+        # plot second plot
+        hist = ax_bar2.hist(empty_bands_per_class, bins=self.depth, align="mid")
+        for bar_container_ in hist[-1]:
+            bar_container_nonzero = self._filter_empty_bars(bar_container_)
+            ax_bar2.bar_label(bar_container_nonzero, padding=3, rotation=90)
+        
+        ax_bar2.set_xlabel("NaNs per sample")
+        ax_bar2.set_ylabel("Samples")
+
+
+        # plot third subplots
+        for i, (ax_, nan_class_) in enumerate(zip(axs_hist, hist_all)):
+            ax_.hist(nan_class_)
+            # ax_.set_title(self.classes[i])
+            ax_.legend(title=self.classes[i])
+            ax_.set_xlabel("NaNs per band")
+            ax_.set_ylabel("Samples")
+
+        plt.tight_layout(pad=3, h_pad=.4)
+        plt.show()
+
+    def _filter_empty_bars(self, bar_container):
+        rects = np.array([rect for rect in bar_container])
+        datavalues = bar_container.datavalues
+        heights = np.array([rect.get_height() for rect in rects])
+        mask_nonzero = heights > 0
+
+        rects_nonzero = rects[mask_nonzero]
+        datavals_nonzero = datavalues[mask_nonzero]
+        bar_container_nonzero = BarContainer(rects_nonzero, datavalues=datavals_nonzero, orientation="vertical")
+        return bar_container_nonzero
+
 
 
 # test dataset
@@ -341,8 +544,13 @@ if __name__ == "__main__":
     # test histogram
     # ds.band_nan_histogram()
 
-    dsp = TreeClassifPreprocessedDataset("data/1102_apply_nan_mask_B2")
-    x0, y0 = dsp[0]
-    print("data shape:", x0.shape)
-    print("label:", y0)
-    print("labelname:", dsp.label_to_labelname(y0))
+    plt.rcParams['axes.titlesize'] = 'x-large'  # Change 'x-large' to the desired fontsize
+    plt.rcParams['axes.titleweight'] = 'bold'
+    plt.rcParams['axes.labelsize'] = 'large'
+    plt.rcParams['axes.labelweight'] = 'bold'
+    plt.rcParams['xtick.labelsize'] = 'large'
+
+    dataset_dir = "data/1123_top10"
+    dsp = TreeClassifDataset(dataset_dir, 1123)
+    # dsp = TreeClassifPreprocessedDataset("data/1123_top10/1123_delete_nan_samples")
+    dsp.band_nan_histogram(savedir=os.path.join(dataset_dir, "data_analysis"))
