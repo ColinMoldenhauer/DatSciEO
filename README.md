@@ -28,3 +28,4 @@ provided reference data
 | ConvNet (Colin) | ᛫ top10 <br> ᛫ split 0.7/0.3 (42) <br> ᛫ mirror, 90°, 180°      | 46 %       |
 | ResNet (Colin) | ᛫ top10 <br> ᛫ split 0.7/0.3 (42) <br> ᛫ mirror, 90°, 180°      | 49 %       |
 | ResNetDropout (Colin) | ᛫ top10 <br> ᛫ split 0.7/0.3 (42) <br> ᛫ mirror, 90°, 180°      | 49 %       |
+| Random Forest Classifier <br> with hyperparameter optimization (Chris) | <br> - split 0.7/0.3 <br> - 57928 samples <br> - data augmentation included <br> - no autumn bands <br> - no nan-values  | 44 %       |
