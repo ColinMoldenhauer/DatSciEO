@@ -289,7 +289,10 @@ class TreeClassifPreprocessedDataset(Dataset):
     
     def _set_dimensions(self):
         x = np.load(os.path.join(self.data_dir, self.files[0]))
-        self.width, self.height, self.depth = x.shape
+        if self.torchify:
+            self.width, self.height, self.depth = x.shape
+        else:
+            self.depth, self.width, self.height = x.shape
         self.n_classes = len(self.classes)
     
     def labelname_to_label(self, labelname):
