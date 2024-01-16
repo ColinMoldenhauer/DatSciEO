@@ -9,10 +9,11 @@ from matplotlib.container import BarContainer
 import matplotlib.pyplot as plt
 import numpy as np
 from sympy import rotations
+import torch
 
 from torch.utils.data import Dataset
 
-from utils import determine_dimensions, file_to_tree_type_name, sample_file_to_tree_type
+from utils import sample_file_to_tree_type
 
 
 # TODO: get ID and geometry in export
@@ -83,12 +84,29 @@ class TreeClassifDataset(Dataset):
         s += f"\n  -> Samples: {len(self)}"
         return s
 
+    def _determine_dimensions_from_collection(self, collection: dict):
+        """
+        Determines the spatial dimensions of an input geojson.
+        """
+        w, h, b = None, None, None
+        for feature_ in collection["features"]:
+            property_names = list(feature_["properties"].keys())
+            for prop_name_ in property_names:
+                rows = feature_["properties"][prop_name_]
+                if rows is not None:
+                    b = len(feature_["properties"])
+                    h = len(feature_["properties"][prop_name_])        # number of rows
+                    w = len(feature_["properties"][prop_name_][0])     # number of columns (values per row)
+                    break
+            if h is not None: break
+        return w, h, b
+
 
     def determine_dimensions(self):
         w, h, b = None, None, None
         for f_ in self.class_files:
             with open(f_) as f: collection = json.load(f)
-            w, h, b = determine_dimensions(collection)
+            w, h, b = self._determine_dimensions_from_collection(collection)
             if w is not None: break
         
         if w is None:
@@ -207,7 +225,7 @@ class TreeClassifDataset(Dataset):
                 nan_all_ = {c:nan_all[c] for c in classes_}
                 plt.figure(figsize=(12, 8))
                 x = np.arange(self.depth)  # the label locations
-                width = 0.25  # the width of the bars
+                width = 0.4  # the width of the bars
                 multiplier = 0
                 norm = self.width*self.height if normalize_nan_sum else 1
 
@@ -220,9 +238,9 @@ class TreeClassifDataset(Dataset):
                 
                 plt.title("Total NaNs per band per class")
                 plt.xlabel("Bands")
-                plt.ylabel("Count")
-                plt.xticks(x+width*len(nan_all_)/2, self.bands, rotation=30)
-                plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), fancybox=True, shadow=False, ncol=len(nan_all_))
+                plt.ylabel("Count", labelpad=15)
+                plt.xticks(x+width*len(nan_all_)/2, self.bands, rotation=30, fontsize="medium")
+                plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), fontsize="x-large", fancybox=True, shadow=False, ncol=len(nan_all_))
                 ylim = plt.gca().get_ylim()
                 plt.ylim(ylim[0], 1.2*ylim[1])
                 plt.tight_layout()
@@ -232,14 +250,14 @@ class TreeClassifDataset(Dataset):
             # plot second plot
             plt.figure(figsize=(12, 8))
             plt.title("Frequency of missing bands")
-            rwidth=0.9
+            rwidth = 10.
             hist = plt.hist(empty_bands_per_class, bins=self.depth, align="mid", label=self.classes, rwidth=rwidth)
             for bar_container_ in hist[-1]:
                 bar_container_nonzero = self._filter_empty_bars(bar_container_, upper=10)
                 plt.bar_label(bar_container_nonzero, padding=3, rotation=0)
             
             plt.xlabel("NaN bands per sample")
-            plt.ylabel("Count")
+            plt.ylabel("Count", labelpad=15)
             plt.legend()
 
             x0, x1 = plt.gca().get_xlim()
@@ -255,7 +273,7 @@ class TreeClassifDataset(Dataset):
                 plt.hist(nan_class_)
                 plt.title(f"Frequency of NaN pixels per band ({self.classes[i]})")
                 plt.xlabel("NaN pixels per band")
-                plt.ylabel("Count")
+                plt.ylabel("Count", labelpad=15)
                 plt.tight_layout()
                 if savedir: plt.savefig(os.path.join(savedir, f"plot_3_{i}.png"))
             
@@ -263,7 +281,7 @@ class TreeClassifDataset(Dataset):
             fig = plt.figure(figsize=(20, 10))
             plt.title("Class Distribution")
             plt.xlabel("Species")
-            plt.ylabel("Count")
+            plt.ylabel("Count", labelpad=15)
             plt.xticks(np.arange(len(self.classes)), self.classes, rotation=45)
             plt.bar(np.arange(len(self.classes)), list(self.samples_per_class.values()))
             plt.tight_layout()
@@ -273,7 +291,7 @@ class TreeClassifDataset(Dataset):
             fig = plt.figure(figsize=(20, 10))
             plt.title("Class Distribution")
             plt.xlabel("Species")
-            plt.ylabel("Count")
+            plt.ylabel("Count", labelpad=15)
             width = .2
             n_bars = 2
             x = np.arange(len(self.classes))
@@ -284,14 +302,14 @@ class TreeClassifDataset(Dataset):
             plt.xticks(x+width*n_bars/2, self.classes, rotation=45)
             plt.tight_layout()
             plt.legend(["Samples", "Samples filtered", "Samples with NaN"], fontsize="large")
-            if savedir: plt.savefig(os.path.join(savedir, f"plot_class_distr_nan.png"))
+            if savedir: plt.savefig(os.path.join(savedir, f"plot_class_distr_all.png"))
 
             
             # plot fourth plot: class distribution filtered
             fig = plt.figure(figsize=(20, 10))
             plt.title("Class Distribution (filtered)")
             plt.xlabel("Species")
-            plt.ylabel("Count")
+            plt.ylabel("Count", labelpad=15)
             plt.xticks(np.arange(len(self.classes)), self.classes, rotation=45)
             plt.bar(np.arange(len(self.classes)), np.array(list(self.samples_per_class.values()))-np.array(nan_samples))
             plt.tight_layout()
@@ -330,14 +348,14 @@ class TreeClassifDataset(Dataset):
                 ax_bar2.bar_label(bar_container_nonzero, padding=3, rotation=90)
             
             ax_bar2.set_xlabel("NaNs per sample")
-            ax_bar2.set_ylabel("Samples")
+            ax_bar2.set_ylabel("Samples", labelpad=15)
 
             # plot third subplots
             for i, (ax_, nan_class_) in enumerate(zip(axs_hist, hist_all)):
                 ax_.hist(nan_class_)
                 ax_.legend(title=self.classes[i])
                 ax_.set_xlabel("NaNs per band")
-                ax_.set_ylabel("Samples")
+                ax_.set_ylabel("Samples", labelpad=15)
 
             plt.tight_layout(pad=3, h_pad=.4)
 
@@ -493,7 +511,7 @@ class TreeClassifPreprocessedDataset(Dataset):
             ax_bar2.bar_label(bar_container_nonzero, padding=3, rotation=90)
         
         ax_bar2.set_xlabel("NaNs per sample")
-        ax_bar2.set_ylabel("Samples")
+        ax_bar2.set_ylabel("Samples", labelpad=15)
 
 
         # plot third subplots
@@ -502,7 +520,7 @@ class TreeClassifPreprocessedDataset(Dataset):
             # ax_.set_title(self.classes[i])
             ax_.legend(title=self.classes[i])
             ax_.set_xlabel("NaNs per band")
-            ax_.set_ylabel("Samples")
+            ax_.set_ylabel("Samples", labelpad=15)
 
         plt.tight_layout(pad=3, h_pad=.4)
         plt.show()
@@ -519,38 +537,21 @@ class TreeClassifPreprocessedDataset(Dataset):
         return bar_container_nonzero
 
 
+class TorchStandardScaler:
+  def fit(self, x):
+    self.mean = x.mean(0, keepdim=True)
+    self.std = x.std(0, unbiased=False, keepdim=True)
 
-# test dataset
-if __name__ == "__main__":
-    # test initialization
-    # ds = TreeClassifDataset("data", "1102")
-    # print("len ds:", len(ds))
-    
-    # test getitem
-    # sample00, label00 = ds[0]
-    # print(sample00, sample00.shape, sep="\n")
+  def transform(self, x):
+    return (x - self.mean) / (self.std + 1e-7)
 
-    # sample0l, label0l =  ds[980]
-    # sample10, label10 =  ds[981]
-    # sample1l, label1l =  ds[4742]
-    # sample20, label20 =  ds[4743]
-    # sample2l, label2l =  ds[4747]
-    # sampleerror, labelerror = ds[4748]
+  def save(self, path):
+     torch.save({
+        "mean": self.mean,
+        "std": self.std
+        }, path)
 
-    # test visualization
-    # fig = ds.visualize_samples(np.random.randint(0, len(ds)-1, 12), (3,4))
-    # plt.show()
-
-    # test histogram
-    # ds.band_nan_histogram()
-
-    plt.rcParams['axes.titlesize'] = 'x-large'  # Change 'x-large' to the desired fontsize
-    plt.rcParams['axes.titleweight'] = 'bold'
-    plt.rcParams['axes.labelsize'] = 'large'
-    plt.rcParams['axes.labelweight'] = 'bold'
-    plt.rcParams['xtick.labelsize'] = 'large'
-
-    dataset_dir = "data/1123_top10"
-    dsp = TreeClassifDataset(dataset_dir, 1123)
-    # dsp = TreeClassifPreprocessedDataset("data/1123_top10/1123_delete_nan_samples")
-    dsp.band_nan_histogram(savedir=os.path.join(dataset_dir, "data_analysis"))
+  def load(self, path):
+     params = torch.load(path)
+     self.mean = params["mean"]
+     self.std = params["std"]

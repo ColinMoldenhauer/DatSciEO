@@ -6,7 +6,7 @@
 
 import datetime
 import json
-import os
+import os, sys
 import time
 
 from argparse import ArgumentParser
@@ -15,6 +15,7 @@ import numpy as np
 
 import models
 from utils import TreeClassifPreprocessedDataset
+from utils import TorchStandardScaler
 
 from sklearn.metrics import accuracy_score
 
@@ -31,6 +32,8 @@ parser.add_argument("-v", "--verbose", type=bool, default=True)
 
 parser.add_argument("-d", "--dataset_dir", type=str, default="data/1123_delete_nan_samples")
 parser.add_argument("-i", "--indices", type=str, default="")
+
+parser.add_argument("-s", "--scaler", type=str, default="TorchStandardScaler")
 
 parser.add_argument("-m", "--model", type=str, default="TreeClassifResNet50")
 parser.add_argument("-r", "--resume", type=str, default="")
@@ -68,11 +71,15 @@ ds_train, ds_val = random_split(dataset, splits, generator=torch.Generator().man
 dl_train = DataLoader(ds_train, batch_size, shuffle=True)
 dl_val = DataLoader(ds_val, batch_size, shuffle=True)
 
+# define an optional scaler
+scaler = getattr(sys.modules[__name__], args.scaler) if args.scaler else None
+
 dataset_info = f"\nUsing dataset with properties:\n"    \
     f"\tsamples:    {len(dataset)}\n"                   \
     f"\t   train:   {len(ds_train)}\n"                  \
     f"\t   val:     {len(ds_val)}\n"                    \
-    f"\tshape: {dataset[0][0].shape}\n"
+    f"\tshape: {dataset[0][0].shape}\n"                 \
+    f"\tScaler: {scaler}"
 if verbose: print(dataset_info)
 
 
@@ -111,6 +118,11 @@ checkpoint_dir = os.path.join(run_dir, "checkpoints")
 os.makedirs(run_dir, exist_ok=True)
 os.makedirs(info_dir, exist_ok=True)
 os.makedirs(checkpoint_dir, exist_ok=True)
+
+# fit scaler
+if scaler:
+    X = torch.tensor([x[0] for x in dataset])
+    scaler.fit(X)
 
 # write some info to run directory
 info = {
@@ -162,6 +174,7 @@ for i_epoch in range(start_epoch, N_epochs):
         assert torch.isnan(x).sum() == 0, "NaN in training data, please fix."
 
         x = x.to(device)
+        if scaler: scaler.transform(x)
         y = y.to(device)
 
         pred = model(x)
@@ -202,6 +215,7 @@ for i_epoch in range(start_epoch, N_epochs):
     with torch.no_grad():
         for i_batch_val, (x, y) in enumerate(dl_val):
             x = x.to(device)
+            if scaler: scaler.transform(x)
             y = y.to(device)
 
             pred_val = model(x)
