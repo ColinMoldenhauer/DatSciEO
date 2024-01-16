@@ -341,8 +341,10 @@ if __name__ == "__main__":
     # test histogram
     # ds.band_nan_histogram()
 
-    dsp = TreeClassifPreprocessedDataset("data/1102_apply_nan_mask_B2")
+    dsp = TreeClassifPreprocessedDataset("data/1102_delete_nan_samples_B2")
     x0, y0 = dsp[0]
+    print("dataset shape:", len(dsp))
+    print("dataset sample:", type(dsp[0]))
     print("data shape:", x0.shape)
     print("label:", y0)
     print("labelname:", dsp.label_to_labelname(y0))
