@@ -2,18 +2,17 @@ import json
 import os
 import glob
 import re
+
 from typing import Iterable
 from matplotlib.container import BarContainer
 
-
 import matplotlib.pyplot as plt
 import numpy as np
-from sympy import rotations
 import torch
 
 from torch.utils.data import Dataset
 
-from utils import sample_file_to_tree_type
+from utils import sample_file_to_tree_type, determine_dimensions_from_collection
 
 
 # TODO: get ID and geometry in export
@@ -84,29 +83,12 @@ class TreeClassifDataset(Dataset):
         s += f"\n  -> Samples: {len(self)}"
         return s
 
-    def _determine_dimensions_from_collection(self, collection: dict):
-        """
-        Determines the spatial dimensions of an input geojson.
-        """
-        w, h, b = None, None, None
-        for feature_ in collection["features"]:
-            property_names = list(feature_["properties"].keys())
-            for prop_name_ in property_names:
-                rows = feature_["properties"][prop_name_]
-                if rows is not None:
-                    b = len(feature_["properties"])
-                    h = len(feature_["properties"][prop_name_])        # number of rows
-                    w = len(feature_["properties"][prop_name_][0])     # number of columns (values per row)
-                    break
-            if h is not None: break
-        return w, h, b
-
 
     def determine_dimensions(self):
         w, h, b = None, None, None
         for f_ in self.class_files:
             with open(f_) as f: collection = json.load(f)
-            w, h, b = self._determine_dimensions_from_collection(collection)
+            w, h, b = determine_dimensions_from_collection(collection)
             if w is not None: break
         
         if w is None:
@@ -378,7 +360,8 @@ class TreeClassifDataset(Dataset):
 
 # TODO: add band information?
 class TreeClassifPreprocessedDataset(Dataset):
-    def __init__(self, data_dir:str, torchify:bool=False, indices:Iterable=None):
+    def __init__(self, data_dir: str, torchify: bool = False, indices: Iterable = None,
+                 ignore_augments: Iterable[str] = []):
         """
         A dataset class for the Tree Classification task.
         Samples need to be created using preprocessing.preprocess_geojson_files() first.
@@ -387,17 +370,22 @@ class TreeClassifPreprocessedDataset(Dataset):
         :param torchify: Whether to flip the data dimensions for torch. Will be removed soon, after Chris
                             implements the flipping per default in the preprocessing.
         :param indices: Optional array indices to load a subset of the dataset; useful for testing purposes
+        :param ignore_augments: Iterable of strings, which augmentations to ignore
         
         """
         super().__init__()
         self.data_dir = data_dir
         self.torchify = torchify
 
-        self.files = [file_ for file_ in os.listdir(data_dir) if file_.endswith(".npy")]
+        if ignore_augments == "all":
+            self.files = [file_ for file_ in os.listdir(data_dir) if re.match("[A-Z][a-z]+_[a-z]+-\d+[.]npy", file_)]
+        else:
+            self.files = [file_ for file_ in os.listdir(data_dir) if (file_.endswith(".npy") and not any([ign_ in file_ for ign_ in ignore_augments]))]
         if indices: self.files = [self.files[idx] for idx in indices]
 
 
         self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir) if file_.endswith(".npy")]))
+        self.samples_per_class = {cl_: len([True for file_ in self.files if re.match(cl_, file_) ]) for cl_ in self.classes}
         self._set_dimensions()
 
     def __len__(self):
@@ -414,6 +402,14 @@ class TreeClassifPreprocessedDataset(Dataset):
             data = np.moveaxis(data, [0,1,2], [2,1,0])
         return data, class_idx
     
+    def __str__(self):
+        n_samples = len(self)
+        s = f"TreeClassifPreprocessedDataset:\n"
+        s += f"  -> Classes ({len(self.classes)}):"
+        for c, n in self.samples_per_class.items(): s+= f"\n\t{c:<20} {n:>5} samples\t( {n/n_samples:2.0%} )"
+        s += f"\n  -> Samples: {n_samples}"
+        return s
+
     def _set_dimensions(self):
         x = np.load(os.path.join(self.data_dir, self.files[0]))
         if self.torchify:
