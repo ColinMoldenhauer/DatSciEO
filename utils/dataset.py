@@ -4,13 +4,14 @@ import glob
 import re
 from typing import Iterable
 from matplotlib.container import BarContainer
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 from torch.utils.data import Dataset
 
-from .utils import determine_dimensions, file_to_tree_type_name, sample_file_to_tree_type
+from utils import determine_dimensions, file_to_tree_type_name, sample_file_to_tree_type
 
 
 # TODO: get ID and geometry in export
@@ -251,7 +252,7 @@ class TreeClassifDataset(Dataset):
 
 # TODO: add band information?
 class TreeClassifPreprocessedDataset(Dataset):
-    def __init__(self, data_dir:str, torchify:bool=False, indices:Iterable=None):
+    def __init__(self, data_dir:str, torchify:bool=False, indices:Iterable=None, excludeAugmentationFor:Iterable=None):
         """
         A dataset class for the Tree Classification task.
         Samples need to be created using preprocessing.preprocess_geojson_files() first.
@@ -267,8 +268,19 @@ class TreeClassifPreprocessedDataset(Dataset):
         self.torchify = torchify
 
         self.files = [file_ for file_ in os.listdir(data_dir) if file_.endswith(".npy")]
-        if indices: self.files = [self.files[idx] for idx in indices]
 
+        # exclude augmented data for given tree species
+        if excludeAugmentationFor:
+            classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in self.files]))
+            for species in excludeAugmentationFor:
+                if species in classes:
+                    delete_from_files = [file_ for file_ in self.files if (file_.startswith(species+'-')) & (len(file_.split('-')) > 2)]
+                    if delete_from_files:
+                        self.files = [file_ for file_ in self.files if file_ not in delete_from_files]
+                else:
+                    sys.exit(f'The tree species {species} for which you want to exclude augmented data, does not exist. Terminating.')
+
+        if indices: self.files = [self.files[idx] for idx in indices]
 
         self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir) if file_.endswith(".npy")]))
         self._set_dimensions()
@@ -341,7 +353,7 @@ if __name__ == "__main__":
     # test histogram
     # ds.band_nan_histogram()
 
-    dsp = TreeClassifPreprocessedDataset("data/1102_delete_nan_samples_B2")
+    dsp = TreeClassifPreprocessedDataset("data/1102_delete_nan_samples_B2", excludeAugmentationFor=['Picea_abies'])
     x0, y0 = dsp[0]
     print("dataset shape:", len(dsp))
     print("dataset sample:", type(dsp[0]))
