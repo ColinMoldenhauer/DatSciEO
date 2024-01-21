@@ -362,7 +362,7 @@ class TreeClassifDataset(Dataset):
 # TODO: add band information?
 class TreeClassifPreprocessedDataset(Dataset):
     def __init__(self, data_dir: str, torchify: bool = False, indices: Iterable = None,
-                 ignore_augments: Iterable[str] = [], excludeAugmentationFor: Iterable[str] | None = None):
+                 ignore_augments: Iterable[str] = [], excludeAugmentationFor: Iterable[str] = []):
         """
         A dataset class for the Tree Classification task.
         Samples need to be created using preprocessing.preprocess_geojson_files() first.
@@ -399,11 +399,10 @@ class TreeClassifPreprocessedDataset(Dataset):
 
         if indices: self.files = [self.files[idx] for idx in indices]
 
-
-
-        self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir) if file_.endswith(".npy")]))
+        self.classes = list(np.sort(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir) if file_.endswith(".npy")])))
         self.samples_per_class = {cl_: len([True for file_ in self.files if re.match(cl_, file_) ]) for cl_ in self.classes}
         self._set_dimensions()
+        print(self.files)
 
     def __len__(self):
         return len(self.files)
@@ -568,3 +567,36 @@ class TorchStandardScaler:
      params = torch.load(path)
      self.mean = params["mean"]
      self.std = params["std"]
+
+
+# test dataset
+if __name__ == "__main__":
+    # test initialization
+    # ds = TreeClassifDataset("data", "1102")
+    # print("len ds:", len(ds))
+    
+    # test getitem
+    # sample00, label00 = ds[0]
+    # print(sample00, sample00.shape, sep="\n")
+
+    # sample0l, label0l =  ds[980]
+    # sample10, label10 =  ds[981]
+    # sample1l, label1l =  ds[4742]
+    # sample20, label20 =  ds[4743]
+    # sample2l, label2l =  ds[4747]
+    # sampleerror, labelerror = ds[4748]
+
+    # test visualization
+    # fig = ds.visualize_samples(np.random.randint(0, len(ds)-1, 12), (3,4))
+    # plt.show()
+
+    # test histogram
+    # ds.band_nan_histogram()
+
+    dsp = TreeClassifPreprocessedDataset("data/1102_delete_nan_samples_B2", excludeAugmentationFor=['Picea_abies'], ignore_augments=['vertical_flip'])
+    x0, y0 = dsp[0]
+    print("dataset shape:", len(dsp))
+    print("dataset sample:", type(dsp[0]))
+    print("data shape:", x0.shape)
+    print("label:", y0)
+    print("labelname:", dsp.label_to_labelname(y0))
