@@ -2,6 +2,7 @@ import json
 import os
 import glob
 import re
+import sys
 
 from typing import Iterable
 from matplotlib.container import BarContainer
@@ -361,7 +362,7 @@ class TreeClassifDataset(Dataset):
 # TODO: add band information?
 class TreeClassifPreprocessedDataset(Dataset):
     def __init__(self, data_dir: str, torchify: bool = False, indices: Iterable = None,
-                 ignore_augments: Iterable[str] = []):
+                 ignore_augments: Iterable[str] = [], excludeAugmentationFor: Iterable[str] | None = None):
         """
         A dataset class for the Tree Classification task.
         Samples need to be created using preprocessing.preprocess_geojson_files() first.
@@ -371,6 +372,7 @@ class TreeClassifPreprocessedDataset(Dataset):
                             implements the flipping per default in the preprocessing.
         :param indices: Optional array indices to load a subset of the dataset; useful for testing purposes
         :param ignore_augments: Iterable of strings, which augmentations to ignore
+        :param excludeAugmentationFor: Iterable of tree species, for which augmentations to ignore
         
         """
         super().__init__()
@@ -381,7 +383,22 @@ class TreeClassifPreprocessedDataset(Dataset):
             self.files = [file_ for file_ in os.listdir(data_dir) if re.match("[A-Z][a-z]+_[a-z]+-\d+[.]npy", file_)]
         else:
             self.files = [file_ for file_ in os.listdir(data_dir) if (file_.endswith(".npy") and not any([ign_ in file_ for ign_ in ignore_augments]))]
+
+
+        # exclude augmented data for given tree species
+        if excludeAugmentationFor:
+            classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in self.files]))
+            for species in excludeAugmentationFor:
+                if species in classes:
+                    delete_from_files = [file_ for file_ in self.files if (file_.startswith(species+'-')) & (len(file_.split('-')) > 2)]
+                    if delete_from_files:
+                        self.files = [file_ for file_ in self.files if file_ not in delete_from_files]
+                else:
+                    sys.exit(f'The tree species {species} for which you want to exclude augmented data, does not exist. Terminating.')
+
+
         if indices: self.files = [self.files[idx] for idx in indices]
+
 
 
         self.classes = list(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir) if file_.endswith(".npy")]))
