@@ -86,4 +86,7 @@ def confusion_matrix_and_classf_metrics(y_true: Iterable, y_pred: Iterable, data
     disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred, display_labels = labels, xticks_rotation = 'vertical')
     plt.title(titleConfMatrix)
     plt.tight_layout()
-    plt.savefig(os.join.path(outputForConfMatrix, titleConfMatrix + '.png'))
+
+    if not os.path.isdir(outputForConfMatrix):
+            os.makedirs(outputForConfMatrix, exist_ok=True)
+    plt.savefig(os.path.join(outputForConfMatrix, titleConfMatrix + '.png'))

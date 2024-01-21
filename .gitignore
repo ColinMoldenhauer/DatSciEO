@@ -3,3 +3,5 @@ runs*
 data/*
 *.idea*
 *desktop.ini*
+confusionMatrices/*
+.joblib
