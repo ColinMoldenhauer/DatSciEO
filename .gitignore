@@ -4,4 +4,4 @@ data/*
 *.idea*
 *desktop.ini*
 confusionMatrices/*
-.joblib
+*.joblib
