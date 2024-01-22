@@ -16,6 +16,7 @@ from utils import determine_dimensions_from_collection, file_to_tree_type_name
 ##############################
 def preprocess_geojson_files(identifier: int, data_dir: str, what_happens_to_nan: str='keep_nan', bands_to_delete: List[str]=[], 
                              transformer_for_numpy_array: partial = None, transformers_data_augmentation: List[Callable|partial] = None,
+                             fill_nan_value: float = None, continue_augmentation: bool = True, augment_rgb_only: bool = False,
                              verbose: bool=True):
     '''
     This function preprocesses the geojson files. The big goal is to create a numpy array for each sample and store them 
