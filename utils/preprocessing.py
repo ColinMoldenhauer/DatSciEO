@@ -10,7 +10,7 @@ import torch
 
 from typing import List, Callable
 
-from utils import determine_dimensions_from_collection, file_to_tree_type_name
+from utils.utils1 import determine_dimensions_from_collection, file_to_tree_type_name
 
 
 ##############################
@@ -274,8 +274,8 @@ if __name__ == "__main__":
 
     # PREPROCESSING OPTIONS ##################################################################################
     # what_happens_to_nan='apply_nan_mask'
-    what_happens_to_nan='replace_nan'
-    # what_happens_to_nan='delete_nan_samples'
+    # what_happens_to_nan='replace_nan'
+    what_happens_to_nan='delete_nan_samples'
     # what_happens_to_nan='keep_nan'
     nan_replace = -1
 
