@@ -82,10 +82,21 @@ def confusion_matrix_and_classf_metrics(y_true: Iterable, y_pred: Iterable, data
         f"\tRecall (Completeness): {rec_dict}\n"             \
         )
 
-
-    disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred, display_labels = labels, xticks_rotation = 'vertical')
-    plt.title(titleConfMatrix)
+    #fig, ax = plt.subplots(figsize=(15, 10))
+    disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred, display_labels = labels, xticks_rotation = 'vertical', colorbar=True, cmap="Blues")
+    disp.plot(colorbar=True, cmap="Blues")
+    tick_size = 8
+    plt.xticks(rotation=30, ha='right', size=tick_size)
+    plt.yticks(size=tick_size)
+    label_size = 18
+    plt.xlabel("Predicted label", size=label_size)
+    plt.ylabel("True label", size=label_size)
     plt.tight_layout()
+    plt.subplots_adjust(bottom=0.1, top = 0.99)#, left=0.4)
+    plt.title(titleConfMatrix, size=label_size+2)
+    fig = disp.ax_.get_figure() 
+    fig.set_figwidth(10)
+    fig.set_figheight(8)  
 
     if not os.path.isdir(outputForConfMatrix):
             os.makedirs(outputForConfMatrix, exist_ok=True)

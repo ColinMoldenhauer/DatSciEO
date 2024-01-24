@@ -402,7 +402,6 @@ class TreeClassifPreprocessedDataset(Dataset):
         self.classes = list(np.sort(np.unique([sample_file_to_tree_type(file_) for file_ in os.listdir(data_dir) if file_.endswith(".npy")])))
         self.samples_per_class = {cl_: len([True for file_ in self.files if re.match(cl_, file_) ]) for cl_ in self.classes}
         self._set_dimensions()
-        print(self.files)
 
     def __len__(self):
         return len(self.files)

@@ -15,9 +15,9 @@ import utils
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import cohen_kappa_score, accuracy_score, confusion_matrix, precision_score, recall_score, ConfusionMatrixDisplay
+#from sklearn.metrics import cohen_kappa_score, accuracy_score, confusion_matrix, precision_score, recall_score, ConfusionMatrixDisplay
 
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 from joblib import dump, load
 
@@ -107,7 +107,7 @@ def train_sklearn_classifier(model: Callable, model_params: dict, dataset: utils
 
     # testing
     y_pred = model_set.predict(X_test)
-    utils.confusion_matrix_and_classf_metrics(y_true=y_test, y_pred=y_pred, dataset=dataset, outputForConfMatrix=r'confusionMatrices')
+    utils.confusion_matrix_and_classf_metrics(y_true=y_test, y_pred=y_pred, dataset=dataset, outputForConfMatrix=r'confusionMatrices', titleConfMatrix='Chris_Training')
     # acc = accuracy_score(y_test, y_pred)
     # kapp = cohen_kappa_score(y_test, y_pred)
     # prec = precision_score(y_test, y_pred, average=None, zero_division = np.nan)
@@ -175,7 +175,7 @@ def test_sklearn_classifier(model_path: str, dataset: utils.TreeClassifPreproces
 
     # testing
     y_pred = loaded_model.predict(X)
-    utils.confusion_matrix_and_classf_metrics(y_true=y, y_pred=y_pred, dataset=dataset, outputForConfMatrix=r'confusionMatrices')
+    utils.confusion_matrix_and_classf_metrics(y_true=y, y_pred=y_pred, dataset=dataset, outputForConfMatrix=r'confusionMatrices', titleConfMatrix='RF Testing')
     # acc = accuracy_score(y, y_pred)
     # kapp = cohen_kappa_score(y, y_pred)
     # prec = precision_score(y, y_pred, average=None, zero_division = np.nan)
@@ -212,18 +212,18 @@ if __name__ == '__main__':
     random_seed = 4 # random seed for reproducibility
     verbose = True
     output_path = 'models' # path where model parameters should be saved
-    output_name = 'chris' # name of file that stores model
+    output_name = '0122chris' # name of file that stores model
     # See https://scikit-learn.org/stable/model_persistence.html
     # See https://stackoverflow.com/questions/53152627/saving-standardscaler-model-for-use-on-new-datasets/53153373#53153373
 
 
     # Dataset parameters -----------------------------------------------
-    dataset_dir = r"data/1123_delete_nan_samples_B11_2-B12_2-B2_2-B3_2-B4_2-B5_2-B6_2-B7_2-B8A_2-B8_2" # location of data
+    dataset_dir = r"data/dataColin/train_val_delete_nan_samples" # location of data
     # create dataset
     dataset = utils.TreeClassifPreprocessedDataset(
         dataset_dir,
         torchify=False,)
-        #indices=[*random.sample(range(1, 18955), 1000)])
+        #indices=[*random.sample(range(1, 208734), 20000)])
     test_size = 0.3 # test size
     scaler = StandardScaler() # scaler for input data. If none is required, put scaler = None
 
@@ -243,7 +243,7 @@ if __name__ == '__main__':
 
     # Random Grid Search Parameters ------------------------------------
     # if no random grid search is desired, random_grid should be an empty dicctionary
-    n_optimizations = 50 # number of parameter settings that are sampled. n_iter trades off runtime vs quality of the solution.
+    n_optimizations = 20 # number of parameter settings that are sampled. n_iter trades off runtime vs quality of the solution.
     random_grid = {'bootstrap': [True, False],
                 'max_depth': [10, 20, 50, 100, None],
                 'min_samples_leaf': [1, 2, 4],
@@ -268,12 +268,13 @@ if __name__ == '__main__':
     # Settings for testing ---------------------------------------------------------------------
     #-------------------------------------------------------------------------------------------
     
-    model_path = r'models/chris_model1.joblib'
-    scaler_path = r'models/chris_scaler1.joblib'
+    model_path = r'models/0122chris_model.joblib'
+    scaler_path = r'models/0122chris_scaler.joblib'
 
-    dataset_dir = r"data/1123_delete_nan_samples_B11_2-B12_2-B2_2-B3_2-B4_2-B5_2-B6_2-B7_2-B8A_2-B8_2" # location of data
+    dataset_dir = r"data/dataColin/test_delete_nan_samples" # location of data
+    #dataset_dir = r"data/dataColin/train_val_delete_nan_samples"
     # create dataset
-    dataset = utils.TreeClassifPreprocessedDataset(dataset_dir, torchify=False)
+    dataset = utils.TreeClassifPreprocessedDataset(dataset_dir, torchify=False)#, indices=[*random.sample(range(1, 208734), 20000)])
     
 
     # Testing ----------------------------------------------------------------------------------
