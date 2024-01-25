@@ -50,7 +50,11 @@ def determine_dimensions_from_collection(collection: dict):
 def confusion_matrix_and_classf_metrics(y_true: Iterable, y_pred: Iterable, dataset, 
                                         output_folder: str, verbose: bool = True,
                                         titleConfMatrix='Confusion Matrix',
+<<<<<<< HEAD
                                         filename=None, suffix=""):
+=======
+                                        filename=None):
+>>>>>>> aed27a4f00ce4e5b5a109b02acdae4d472db2cde
     '''
     This function calculates all the necessary metrics and saves the confusion matrix for a classification
 
