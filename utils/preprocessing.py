@@ -10,7 +10,7 @@ import torch
 
 from typing import List, Callable
 
-from utils.utils1 import determine_dimensions_from_collection, file_to_tree_type_name
+from utils.misc import determine_dimensions_from_collection, file_to_tree_type_name
 
 
 ##############################

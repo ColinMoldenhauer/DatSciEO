@@ -7,7 +7,7 @@ import time
 import numpy as np
 
 import models
-from utils import TreeClassifPreprocessedDataset
+from utils import TreeClassifPreprocessedDataset, confusion_matrix_and_classf_metrics
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
@@ -16,13 +16,15 @@ import torch
 from torch.utils.data import DataLoader, random_split
 
 
+data_root = "data" if os.name == "nt" else "/seminar/datscieo-0/data"
+
 parser = ArgumentParser()
 parser.add_argument("run_id", type=str)
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--epoch", type=int)
 group.add_argument("--checkpoint", type=str)
-parser.add_argument("-R", "--run_root", type=str, default="/seminar/datscieo-0/colin/runs")
-parser.add_argument("-d", "--dataset_dir", type=str, default="data/1123_delete_nan_samples")
+parser.add_argument("-R", "--run_root", type=str, default="runs" if os.name == "nt" else "/seminar/datscieo-0/runs_baseline")
+parser.add_argument("-d", "--dataset_dir", type=str, default=os.path.join(data_root, "test/test_delete_nan_samples"))
 parser.add_argument("-i", "--indices", type=str, default="")
 parser.add_argument("-m", "--model", type=str, default="TreeClassifResNet50")
 
@@ -33,12 +35,9 @@ args = parser.parse_args()
 
 ################# SETTINGS ##################
 ######## GENERAL
-run_id = "20231229_TreeClassifResNet50"
-run_id = "20231220-20h53m17s_97epochs"
 run_id = args.run_id
-checkpoint_epoch = args.epoch
 batch_size_test = args.batch_size
-verbose = True
+verbose = args.verbose
 
 ######## DATA
 # create datasets and dataloaders
@@ -46,7 +45,7 @@ dataset_dir = args.dataset_dir
 dataset = TreeClassifPreprocessedDataset(dataset_dir, indices=eval(args.indices) if args.indices else None)
 
 # at this point, perform prediction on validation split, later use real test set
-splits = [.7, .3]
+splits = [.8, .2]
 ds_train, ds_val = random_split(dataset, splits, generator=torch.Generator().manual_seed(42))
 ds_test = ds_val.dataset
 dl_test = DataLoader(ds_test, batch_size_test, shuffle=True)
@@ -59,7 +58,6 @@ if verbose: print(
 
 
 ######## MODEL
-# model = TreeClassifResNet50(
 model = getattr(models, args.model)(
     n_classes = dataset.n_classes,
     width = dataset.width,
@@ -72,8 +70,13 @@ if verbose:
     print(f"with {sum(p.numel() for p in model.parameters())} parameters")
 #############################################
 
-
-checkpoint = torch.load(os.path.join(args.run_root, run_id, "checkpoints", f"epoch_{checkpoint_epoch}.pth"))
+map_loc = torch.device('cpu') if os.name == "nt" else None
+if args.checkpoint == "best":
+    checkpoint = torch.load(os.path.join(args.run_root, run_id, f"best.pth"), map_location=map_loc)
+elif args.checkpoint:
+    checkpoint = torch.load(os.path.join(args.checkpoint), map_location=map_loc)
+else:
+    checkpoint = torch.load(os.path.join(args.run_root, run_id, "checkpoints", f"epoch_{args.epoch}.pth"), map_location=map_loc)
 output_dir = os.path.join(args.run_root, run_id, "eval")
 os.makedirs(output_dir, exist_ok=True)
 
@@ -110,29 +113,11 @@ for i_batch, (x, y) in enumerate(dl_test):
 
 
 ################# EVALUATION ################
-accuracy_test = accuracy_score(all_gts, all_preds)
-if verbose: print("accuracy:", accuracy_test)
+
+confusion_matrix_and_classf_metrics(all_gts, all_preds, ds_test, output_dir, verbose=verbose)
 
 
-cm = confusion_matrix(all_gts, all_preds, labels=range(dataset.n_classes))
-if verbose: print("confusion matrix\n", cm)
 
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=ds_test.classes)
-disp.plot(colorbar=True, cmap="Blues")
-tick_size = 8
-plt.xticks(rotation=30, ha='right', size=tick_size)
-plt.yticks(size=tick_size)
-label_size = 18
-plt.xlabel("Predicted label", size=label_size)
-plt.ylabel("True label", size=label_size)
-plt.tight_layout()
-plt.subplots_adjust(bottom=0.2, top=0.98)
 
 
 # save results
-with open(os.path.join(output_dir, f"metrics_{checkpoint_epoch}.txt"), "w") as f:
-    json.dump({
-        "accuracy": accuracy_test,
-        "confusion_matrix": cm.tolist()
-    }, f)
-plt.savefig(os.path.join(output_dir, f"confusion_{checkpoint_epoch}.png"),dpi=300, bbox_inches="tight")

@@ -145,6 +145,9 @@ class TreeClassifResNet50Dropout(nn.Module):
             nn.Linear(512 * block.expansion, n_classes)
         )
 
+    def forward(self, x):
+        return self.model(x)
+
 
 class TreeClassifResNet50Dropout75(nn.Module):
     """

@@ -26,13 +26,21 @@ from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 from utils import train_schedules
 
+from torch.nn import CrossEntropyLoss
+from utils import FocalLoss
+
+
+data_root = "data" if os.name == "nt" else "/seminar/datscieo-0/data"
 
 parser = ArgumentParser()
 parser.add_argument("-e", "--epochs", type=int, default=100)
 parser.add_argument("-b", "--batch_size", type=int, default=40)
 parser.add_argument("-l", "--learning_rate", type=float, default=1e-4)
 
-parser.add_argument("-d", "--dataset_dir", type=str, default="/seminar/datscieo-0/data/train_val/train_val_delete_nan_bands")
+parser.add_argument("--loss", type=str, default="CrossEntropyLoss")
+parser.add_argument("-w", "--weighted_loss", type=bool, default=False)
+
+parser.add_argument("-d", "--dataset_dir", type=str, default=os.path.join(data_root, "train_val/train_val_delete_nan_bands"))
 parser.add_argument("-i", "--indices", type=str, default="")
 parser.add_argument("--ignore-augmentations", nargs="+", default=[])
 
@@ -41,7 +49,7 @@ parser.add_argument("-s", "--scaler", type=str, default="")
 parser.add_argument("-m", "--model", type=str, default="TreeClassifResNet50")
 parser.add_argument("-r", "--resume", type=str, default="")
 
-parser.add_argument("-R", "--run_root", type=str, default="/seminar/datscieo-0/runs")
+parser.add_argument("-R", "--run_root", type=str, default="runs" if os.name == "nt" else "/seminar/datscieo-0/runs_baseline")
 parser.add_argument("--run_name", type=str, default="")
 parser.add_argument("--schedule", default="", help="#TODO")
 
@@ -55,7 +63,7 @@ else:
     schedule = ["single train"]
 
 
-
+if isinstance(schedule, dict): schedule = [schedule]    # allow single training settings as well
 for train_params in schedule:
     if not train_params == "single train":
         args = parser.parse_args(namespace=Namespace(**train_params))
@@ -105,16 +113,25 @@ for train_params in schedule:
 
 
     ######## MODEL
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     model = getattr(models, args.model)(
         n_classes = dataset.n_classes,
         width = dataset.width,
         height = dataset.height,
         depth = dataset.depth
     )
-    loss_fn = nn.CrossEntropyLoss()
+    if args.weighted_loss:
+        classes = dataset.classes
+        samples = [dataset.samples_per_class[cl_] for cl_ in classes]
+        weight = 1 / torch.tensor(samples)
+        weight = weight / weight.sum()
+    else:
+        weight = None
+    loss_fn = vars()[args.loss](weight=weight.to(device) if weight is not None else None)
+
     optim = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
 
     if verbose:
@@ -159,9 +176,7 @@ for train_params in schedule:
         "model": model.__class__.__name__,
         "optimizer": optim.__class__.__name__,
         "loss": loss_fn.__class__.__name__,
-        "splits": splits,
-        "indices train": ds_train.indices,
-        "indices val": ds_val.indices,
+        "splits": splits
     }
     with open(os.path.join(info_dir, "info.json"), "w") as f_info:
         json.dump(info, f_info)
@@ -185,6 +200,7 @@ for train_params in schedule:
         checkpoint_dir = checkpoint["checkpoint_dir"]
         start_epoch = checkpoint["epoch"] + 1
         best_loss = checkpoint["best_loss"]
+        info_dir = os.path.join(os.path.dirname(checkpoint_dir), "info")
     else:
         start_epoch = 0
         best_loss = 1e10
