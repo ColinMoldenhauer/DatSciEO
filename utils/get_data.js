@@ -42,9 +42,13 @@ var patch_size = 2;
 
 
 // specify a folder where to store the data
-var folder_name = "DatSciEOData";
+var folder_name = "DatSciEO";
 // optionally define colors for visualization for each species
-var colors = ["#f3ff3c", "#ff0022"];
+var colors = [
+  "#f3ff3c", "#ff0022", '#ffff00',
+  '#00ffff', '#ff00ff', '#ffffff',
+  '#33AAbb', '#0000ff', '#ff0000'
+  ];
 
 /*          SETTINGS END      */
 
