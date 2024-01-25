@@ -48,7 +48,9 @@ def determine_dimensions_from_collection(collection: dict):
 
 
 def confusion_matrix_and_classf_metrics(y_true: Iterable, y_pred: Iterable, dataset, 
-                                        output_folder: str, verbose: bool = True, titleConfMatrix = 'Confusion Matrix'):
+                                        output_folder: str, verbose: bool = True,
+                                        titleConfMatrix='Confusion Matrix',
+                                        filename=None):
     '''
     This function calculates all the necessary metrics and saves the confusion matrix for a classification
 
@@ -57,21 +59,17 @@ def confusion_matrix_and_classf_metrics(y_true: Iterable, y_pred: Iterable, data
     dataset: dataset needs to have included the function label_to_labelname
     output_folder: output folder for confusion matrix plot
     verbose: print metrics if True
-    titleConfMatrix: title of confusion matrix + name of saved file
+    titleConfMatrix: title of confusion matrix + (optionally) name of saved file
+    filename: File where to save confusion matrix image
     '''
     os.makedirs(output_folder, exist_ok=True)
 
-    # generate label names for confusion matrix later
-    # labels = []
-    # for label in np.sort(np.unique(y_true)):
-    #     labels.append(dataset.label_to_labelname(label))
     labels = dataset.classes
 
     acc = accuracy_score(y_true, y_pred)
     kapp = cohen_kappa_score(y_true, y_pred)
     prec = precision_score(y_true, y_pred, average=None, zero_division = np.nan)
     rec = recall_score(y_true, y_pred, average=None, zero_division = np.nan)
-    #conf_mat = confusion_matrix(y_test, y_pred)
 
     prec_dict = dict(zip(labels, prec))
     rec_dict = dict(zip(labels, rec))
@@ -83,13 +81,7 @@ def confusion_matrix_and_classf_metrics(y_true: Iterable, y_pred: Iterable, data
         "recall": rec_dict
     }
 
-    if verbose: 
-        print(f"\nMetrics:\n" + json.dumps(metrics, indent=2))
-        # f"\tAccuracy: {acc}\n"              \
-        # f"\tCohen kappa score: {kapp}\n"             \
-        # f"\tPrecision (Correctness): {prec_dict}\n"             \
-        # f"\tRecall (Completeness): {rec_dict}\n"             \
-        # )
+    if verbose: print(f"\nMetrics:\n" + json.dumps(metrics, indent=2))
     
 
     cm = confusion_matrix(y_true, y_pred, labels=range(dataset.n_classes))
@@ -101,16 +93,12 @@ def confusion_matrix_and_classf_metrics(y_true: Iterable, y_pred: Iterable, data
     plt.xticks(rotation=30, ha='right', size=tick_size)
     plt.yticks(size=tick_size)
     label_size = 18
+    if titleConfMatrix: plt.title(titleConfMatrix, fontsize=20, fontweight="bold")
     plt.xlabel("Predicted label", size=label_size)
     plt.ylabel("True label", size=label_size)
+    plt.subplots_adjust(bottom=0.2, top=None if titleConfMatrix else 0.98)
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.2, top=0.98)
-    plt.title(titleConfMatrix)
-
-    # disp = ConfusionMatrixDisplay.from_predictions(y_true, y_pred, display_labels = labels, xticks_rotation = 'vertical')
-    # plt.title(titleConfMatrix)
-    # plt.tight_layout()
 
     with open(os.path.join(output_folder, "metrics.txt"), "w") as f:
         json.dump(metrics, f)
-    plt.savefig(os.path.join(output_folder, titleConfMatrix + '.png'))
+    plt.savefig(filename or os.path.join(output_folder, titleConfMatrix + '.png'))

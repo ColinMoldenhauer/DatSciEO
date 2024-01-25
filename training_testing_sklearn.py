@@ -107,7 +107,7 @@ def train_sklearn_classifier(model: Callable, model_params: dict, dataset: utils
 
     # testing
     y_pred = model_set.predict(X_test)
-    utils.confusion_matrix_and_classf_metrics(y_true=y_test, y_pred=y_pred, dataset=dataset, outputForConfMatrix=r'confusionMatrices')
+    utils.confusion_matrix_and_classf_metrics(y_true=y_test, y_pred=y_pred, dataset=dataset, output_folder=r'confusionMatrices')
     # acc = accuracy_score(y_test, y_pred)
     # kapp = cohen_kappa_score(y_test, y_pred)
     # prec = precision_score(y_test, y_pred, average=None, zero_division = np.nan)
@@ -175,7 +175,7 @@ def test_sklearn_classifier(model_path: str, dataset: utils.TreeClassifPreproces
 
     # testing
     y_pred = loaded_model.predict(X)
-    utils.confusion_matrix_and_classf_metrics(y_true=y, y_pred=y_pred, dataset=dataset, outputForConfMatrix=r'confusionMatrices')
+    utils.confusion_matrix_and_classf_metrics(y_true=y, y_pred=y_pred, dataset=dataset, output_folder=r'confusionMatrices')
     # acc = accuracy_score(y, y_pred)
     # kapp = cohen_kappa_score(y, y_pred)
     # prec = precision_score(y, y_pred, average=None, zero_division = np.nan)

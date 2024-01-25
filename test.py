@@ -20,6 +20,7 @@ data_root = "data" if os.name == "nt" else "/seminar/datscieo-0/data"
 
 parser = ArgumentParser()
 parser.add_argument("run_id", type=str)
+parser.add_argument("--suffix", type=str, default="test")
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--epoch", type=int)
 group.add_argument("--checkpoint", type=str)
@@ -42,12 +43,7 @@ verbose = args.verbose
 ######## DATA
 # create datasets and dataloaders
 dataset_dir = args.dataset_dir
-dataset = TreeClassifPreprocessedDataset(dataset_dir, indices=eval(args.indices) if args.indices else None)
-
-# at this point, perform prediction on validation split, later use real test set
-splits = [.8, .2]
-ds_train, ds_val = random_split(dataset, splits, generator=torch.Generator().manual_seed(42))
-ds_test = ds_val.dataset
+ds_test = TreeClassifPreprocessedDataset(dataset_dir, indices=eval(args.indices) if args.indices else None)
 dl_test = DataLoader(ds_test, batch_size_test, shuffle=True)
 
 if verbose: print(
@@ -59,10 +55,10 @@ if verbose: print(
 
 ######## MODEL
 model = getattr(models, args.model)(
-    n_classes = dataset.n_classes,
-    width = dataset.width,
-    height = dataset.height,
-    depth = dataset.depth
+    n_classes = ds_test.n_classes,
+    width = ds_test.width,
+    height = ds_test.height,
+    depth = ds_test.depth
 )
 
 if verbose:
@@ -113,11 +109,5 @@ for i_batch, (x, y) in enumerate(dl_test):
 
 
 ################# EVALUATION ################
-
-confusion_matrix_and_classf_metrics(all_gts, all_preds, ds_test, output_dir, verbose=verbose)
-
-
-
-
-
-# save results
+suffix = args.suffix if args.suffix.startswith("_") else "_" + args.suffix
+confusion_matrix_and_classf_metrics(all_gts, all_preds, ds_test, output_dir, verbose=verbose, titleConfMatrix="", filename=os.path.join(output_dir, f"CM_{args.run_id}{suffix}.png"))
