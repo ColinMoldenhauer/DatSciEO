@@ -28,6 +28,9 @@ from utils import train_schedules
 
 from torch.nn import CrossEntropyLoss
 from utils import FocalLoss
+from utils.misc import confusion_matrix_and_classf_metrics
+
+from .test import test_model
 
 
 data_root = "data" if os.name == "nt" else "/seminar/datscieo-0/data"
@@ -319,3 +322,9 @@ for train_params in schedule:
                     }, checkpoint_file)
 
             best_loss = loss_val_avg
+
+    # evaluate best model on validation split
+    checkpoint = torch.load(os.path.join(info_dir, f"best.pth"))
+    model.load_state_dict(checkpoint["model_state_dict"])
+    all_gts, all_preds = test_model()
+    confusion_matrix_and_classf_metrics(all_gts, all_preds, ds_val, info_dir, verbose=verbose, titleConfMatrix="", filename=f"CM_val.png")
