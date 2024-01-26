@@ -53,10 +53,7 @@ def test_model(model, device, dl_test, batch_size_test):
 parser = ArgumentParser()
 parser.add_argument("run_id", type=str)
 parser.add_argument("--suffix", type=str, default="test")
-<<<<<<< HEAD
 parser.add_argument("--do_split", action="store_true", default=False)
-=======
->>>>>>> aed27a4f00ce4e5b5a109b02acdae4d472db2cde
 group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("--epoch", type=int)
 group.add_argument("--checkpoint", type=str)
@@ -79,7 +76,6 @@ verbose = args.verbose
 ######## DATA
 # create datasets and dataloaders
 dataset_dir = args.dataset_dir
-<<<<<<< HEAD
 
 # optionally split for testing on validation set
 dataset = TreeClassifPreprocessedDataset(dataset_dir, indices=eval(args.indices) if args.indices else None)
@@ -89,9 +85,6 @@ if args.do_split:
     ds_test = ds_test.dataset
 else:
     ds_test = dataset
-=======
-ds_test = TreeClassifPreprocessedDataset(dataset_dir, indices=eval(args.indices) if args.indices else None)
->>>>>>> aed27a4f00ce4e5b5a109b02acdae4d472db2cde
 dl_test = DataLoader(ds_test, batch_size_test, shuffle=True)
 
 if verbose: print(
