@@ -1,5 +1,7 @@
 *__pycache__*
-*runs*
-*data*
+runs*
+data/*
 *.idea*
 *desktop.ini*
+confusionMatrices/*
+.joblib

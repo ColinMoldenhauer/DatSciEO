@@ -145,6 +145,38 @@ class TreeClassifResNet50Dropout(nn.Module):
             nn.Linear(512 * block.expansion, n_classes)
         )
 
+    def forward(self, x):
+        return self.model(x)
+
+
+class TreeClassifResNet50Dropout75(nn.Module):
+    """
+    A ResNet inspired architecture (https://arxiv.org/pdf/1512.03385.pdf).
+    Changed the stride to 1, such that the spatial dimensions are not reduced.
+    Additionally, Dropout layers are introduced between the layer blocks.
+    """
+    def __init__(self, n_classes=10, width=5, height=5, depth=30, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+        self.n_classes = n_classes
+        self.width = width
+        self.height = height
+        self.depth = depth
+
+        block = Bottleneck
+        self.model = nn.Sequential(
+            make_residual_layer(block, depth, 64, 3),
+            nn.Dropout2d(0.75),
+            make_residual_layer(block, 256, 128, 4, stride=1),      # resnet uses stride=2, which shrinks image
+            nn.Dropout2d(0.75),
+            make_residual_layer(block, 512, 256, 6, stride=1),      # with a spatial extent of 5x5, we can't afford
+            nn.Dropout2d(0.75),
+            make_residual_layer(block, 1024, 512, 3, stride=1),     # shrinking
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            nn.Linear(512 * block.expansion, n_classes)
+        )
+
 
     def forward(self, x):
         return self.model(x)

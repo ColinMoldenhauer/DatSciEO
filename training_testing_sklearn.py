@@ -10,7 +10,7 @@ from typing import Callable
 
 import numpy as np
 
-from utils import TreeClassifPreprocessedDataset
+import utils
 
 from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.preprocessing import StandardScaler
@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from joblib import dump, load
 
 
-def train_sklearn_classifier(model: Callable, model_params: dict, dataset: TreeClassifPreprocessedDataset, output_path: str, output_name: str, test_size: float = 0.3,
+def train_sklearn_classifier(model: Callable, model_params: dict, dataset: utils.TreeClassifPreprocessedDataset, output_path: str, output_name: str, test_size: float = 0.3,
                             scaler: Callable | None = None, random_grid_params_optim: dict | None = None, n_random_grid_optim: float = 10, score_decision: str = 'accuracy',
                             verbose: bool = True, random_seed: int = 4):
     '''
@@ -107,23 +107,24 @@ def train_sklearn_classifier(model: Callable, model_params: dict, dataset: TreeC
 
     # testing
     y_pred = model_set.predict(X_test)
-    acc = accuracy_score(y_test, y_pred)
-    kapp = cohen_kappa_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred, average=None, zero_division = np.nan)
-    rec = recall_score(y_test, y_pred, average=None, zero_division = np.nan)
-    #conf_mat = confusion_matrix(y_test, y_pred)
+    utils.confusion_matrix_and_classf_metrics(y_true=y_test, y_pred=y_pred, dataset=dataset, output_folder=r'confusionMatrices')
+    # acc = accuracy_score(y_test, y_pred)
+    # kapp = cohen_kappa_score(y_test, y_pred)
+    # prec = precision_score(y_test, y_pred, average=None, zero_division = np.nan)
+    # rec = recall_score(y_test, y_pred, average=None, zero_division = np.nan)
+    # #conf_mat = confusion_matrix(y_test, y_pred)
 
-    prec_dict = dict(zip(labels, prec))
-    rec_dict = dict(zip(labels, rec))
+    # prec_dict = dict(zip(labels, prec))
+    # rec_dict = dict(zip(labels, rec))
 
-    if verbose: 
-        print(
-        f"\nMetrics:\n"       \
-        f"\tAccuracy: {acc}\n"              \
-        f"\tCohen kappa score: {kapp}\n"             \
-        f"\tPrecision (Correctness): {prec_dict}\n"             \
-        f"\tRecall (Completeness): {rec_dict}\n"             \
-        )
+    # if verbose: 
+    #     print(
+    #     f"\nMetrics:\n"       \
+    #     f"\tAccuracy: {acc}\n"              \
+    #     f"\tCohen kappa score: {kapp}\n"             \
+    #     f"\tPrecision (Correctness): {prec_dict}\n"             \
+    #     f"\tRecall (Completeness): {rec_dict}\n"             \
+    #     )
 
 
     # save model and scaler for later use. See https://stackoverflow.com/questions/53152627/saving-standardscaler-model-for-use-on-new-datasets/53153373#53153373
@@ -133,15 +134,15 @@ def train_sklearn_classifier(model: Callable, model_params: dict, dataset: TreeC
         dump(scaler, os.path.join(output_path, output_name + '_scaler.joblib')) 
         if verbose: print(f"Saving used scaler to '{os.path.join(output_path, output_name + '_scaler.joblib')}'")
 
-    disp = ConfusionMatrixDisplay.from_predictions(y_test, y_pred, display_labels = labels, xticks_rotation = 'vertical')#, display_labels=dataset.classes)
-    plt.title('Confusion Matrix Training')
-    plt.tight_layout()
-    plt.show()
+    # disp = ConfusionMatrixDisplay.from_predictions(y_test, y_pred, display_labels = labels, xticks_rotation = 'vertical')#, display_labels=dataset.classes)
+    # plt.title('Confusion Matrix Training')
+    # plt.tight_layout()
+    # plt.show()
 
 
 
 
-def test_sklearn_classifier(model_path: str, dataset: TreeClassifPreprocessedDataset, scaler_path: str | None = None):
+def test_sklearn_classifier(model_path: str, dataset: utils.TreeClassifPreprocessedDataset, scaler_path: str | None = None):
     '''
     This function trains a given sklearn classifier from a given pytorch dataset, and saves the model as joblib-file. Random grid search is enabled.
 
@@ -174,29 +175,30 @@ def test_sklearn_classifier(model_path: str, dataset: TreeClassifPreprocessedDat
 
     # testing
     y_pred = loaded_model.predict(X)
-    acc = accuracy_score(y, y_pred)
-    kapp = cohen_kappa_score(y, y_pred)
-    prec = precision_score(y, y_pred, average=None, zero_division = np.nan)
-    rec = recall_score(y, y_pred, average=None, zero_division = np.nan)
-    #conf_mat = confusion_matrix(y_test, y_pred)
+    utils.confusion_matrix_and_classf_metrics(y_true=y, y_pred=y_pred, dataset=dataset, output_folder=r'confusionMatrices')
+    # acc = accuracy_score(y, y_pred)
+    # kapp = cohen_kappa_score(y, y_pred)
+    # prec = precision_score(y, y_pred, average=None, zero_division = np.nan)
+    # rec = recall_score(y, y_pred, average=None, zero_division = np.nan)
+    # #conf_mat = confusion_matrix(y_test, y_pred)
 
-    prec_dict = dict(zip(labels, prec))
-    rec_dict = dict(zip(labels, rec))
+    # prec_dict = dict(zip(labels, prec))
+    # rec_dict = dict(zip(labels, rec))
 
-    if verbose: 
-        print(
-        f"\nMetrics:\n"       \
-        f"\tAccuracy: {acc}\n"              \
-        f"\tCohen kappa score: {kapp}\n"             \
-        f"\tPrecision (Correctness): {prec_dict}\n"             \
-        f"\tRecall (Completeness): {rec_dict}\n"             \
-        )
+    # if verbose: 
+    #     print(
+    #     f"\nMetrics:\n"       \
+    #     f"\tAccuracy: {acc}\n"              \
+    #     f"\tCohen kappa score: {kapp}\n"             \
+    #     f"\tPrecision (Correctness): {prec_dict}\n"             \
+    #     f"\tRecall (Completeness): {rec_dict}\n"             \
+    #     )
 
 
-    disp = ConfusionMatrixDisplay.from_predictions(y, y_pred, display_labels = labels, xticks_rotation = 'vertical')#, display_labels=dataset.classes)
-    plt.title('Confusion Matrix Testing')
-    plt.tight_layout()
-    plt.show()
+    # disp = ConfusionMatrixDisplay.from_predictions(y, y_pred, display_labels = labels, xticks_rotation = 'vertical')#, display_labels=dataset.classes)
+    # plt.title('Confusion Matrix Testing')
+    # plt.tight_layout()
+    # plt.show()
 
 
 
@@ -218,7 +220,7 @@ if __name__ == '__main__':
     # Dataset parameters -----------------------------------------------
     dataset_dir = r"data/1123_delete_nan_samples_B11_2-B12_2-B2_2-B3_2-B4_2-B5_2-B6_2-B7_2-B8A_2-B8_2" # location of data
     # create dataset
-    dataset = TreeClassifPreprocessedDataset(
+    dataset = utils.TreeClassifPreprocessedDataset(
         dataset_dir,
         torchify=False,)
         #indices=[*random.sample(range(1, 18955), 1000)])
@@ -254,7 +256,7 @@ if __name__ == '__main__':
 
     # Training ---------------------------------------------------------------------------------
     #-------------------------------------------------------------------------------------------
-    training = True
+    training = False
 
     if training:
         train_sklearn_classifier(model = model, model_params = params, dataset = dataset, output_path = output_path, output_name = output_name, test_size = test_size,
@@ -271,7 +273,7 @@ if __name__ == '__main__':
 
     dataset_dir = r"data/1123_delete_nan_samples_B11_2-B12_2-B2_2-B3_2-B4_2-B5_2-B6_2-B7_2-B8A_2-B8_2" # location of data
     # create dataset
-    dataset = TreeClassifPreprocessedDataset(dataset_dir, torchify=False)
+    dataset = utils.TreeClassifPreprocessedDataset(dataset_dir, torchify=False)
     
 
     # Testing ----------------------------------------------------------------------------------
