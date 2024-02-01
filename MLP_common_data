@@ -1,0 +1,118 @@
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.metrics import accuracy_score, cohen_kappa_score, precision_score, recall_score, confusion_matrix,classification_report,ConfusionMatrixDisplay
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.exceptions import ConvergenceWarning
+# Sometimes I run the classifier, this warning will occurs
+# UndefinedMetricWarning: Precision and F-score are ill-defined and being set to 0.0 in labels with no predicted samples. 
+#     Use `zero_division` parameter to control this behavior.
+import warnings
+warnings.filterwarnings("ignore")
+
+from utils.dataset import TreeClassifPreprocessedDataset
+
+seed = 42
+np.random.seed(seed)
+
+## Train on common dataset
+
+# Load data
+data = []
+labels = []
+
+# Specify data folder direction
+data_dir = r'F:\train_val_delete_nan_samples'
+ds = TreeClassifPreprocessedDataset(data_dir)
+
+for data_, label_ in ds:
+    data.append(data_)
+    labels.append(label_)
+
+def Norma(data):
+    data = np.array(data)
+    data_reshaped = data.reshape(-1, data.shape[1], data.shape[2] * data.shape[3])
+    # print (data_reshaped.shape)
+
+    # Reshape the data to normalize
+    data_normalized_reshaped = data_reshaped.reshape(data_reshaped.shape[0], -1)
+    # print(data_normalized_reshaped.shape)
+
+    # Apply Min-Max normalization
+    scaler = MinMaxScaler()
+    data_normalized = scaler.fit_transform(data_normalized_reshaped)
+    # print(data_normalized[:10, :])
+    return data_normalized
+
+
+
+# data = np.array(data)
+# data_reshaped = data.reshape(-1, data.shape[1], data.shape[2] * data.shape[3])
+# # print (data_reshaped.shape)
+
+# # Reshape the data to normalize
+# data_normalized_reshaped = data_reshaped.reshape(data_reshaped.shape[0], -1)
+# # print(data_normalized_reshaped.shape)
+
+# # Apply Min-Max normalization
+# scaler = MinMaxScaler()
+# data_normalized = scaler.fit_transform(data_normalized_reshaped)
+# # print(data_normalized[:10, :])
+
+# Split the data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(data_normalized, labels, test_size=0.2, random_state=seed)
+# print(np.array(data).shape)
+
+# Bulid a MLP classifier
+# hidden_layer_sizesarray-like of shape(n_layers - 2,), default=(100,)
+# The default solver ‘adam’ works pretty well on relatively large datasets 
+#    (with thousands of training samples or more) in terms of both training time and validation score. 
+clf = MLPClassifier(activation='logistic',solver='adam',hidden_layer_sizes=(30,20), random_state=42)
+
+# Train
+clf.fit(X_train, y_train)
+# test_score = clf.score(X_test, y_test)
+# print("Test set score:", test_score)
+y_pred = clf.predict(X_test)
+print(classification_report(y_test, y_pred))
+
+print("Kappa_train:")
+print(cohen_kappa_score(y_test, y_pred))
+
+cm_train = confusion_matrix(y_test, y_pred)
+
+# 显示混淆矩阵
+disp = ConfusionMatrixDisplay(cm_train, display_labels=np.unique(labels))
+disp.plot(cmap='Blues', values_format='.4g')
+plt.title('Confusion Matrix for MLP1 training')
+plt.savefig(r"F:\DSEO\cm_MLP1 training.tif")
+plt.show()
+
+# -----------------------------------------------------------------------
+test_data = []
+test_labels = []
+
+test_data_dir = r'F:\test_delete_nan_samples'
+test_ds = TreeClassifPreprocessedDataset(test_data_dir)
+
+for data_, label_ in test_ds:
+    test_data.append(data_)
+    test_labels.append(label_)
+
+test_normalized=Norma(test_data)
+
+test_pred = clf.predict(test_normalized)
+print(classification_report(test_labels, test_pred))
+
+print("Kappa_test:")
+print(cohen_kappa_score(test_labels, test_pred))
+
+cm_test = confusion_matrix(test_labels, test_pred)
+
+# 显示混淆矩阵
+disp = ConfusionMatrixDisplay(cm_test, display_labels=np.unique(test_labels))
+disp.plot(cmap='Blues', values_format='.4g')
+plt.title('Confusion Matrix for MLP1 testing')
+plt.savefig(r"F:\DSEO\cm_MLP1 test.tif")

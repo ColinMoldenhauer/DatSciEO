@@ -1,0 +1,118 @@
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.metrics import accuracy_score, cohen_kappa_score, precision_score, recall_score, confusion_matrix,classification_report,ConfusionMatrixDisplay
+from sklearn.neural_network import MLPClassifier
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.exceptions import ConvergenceWarning
+# Sometimes I run the classifier, this warning will occurs
+# UndefinedMetricWarning: Precision and F-score are ill-defined and being set to 0.0 in labels with no predicted samples. 
+#     Use `zero_division` parameter to control this behavior.
+import warnings
+warnings.filterwarnings("ignore")
+
+from utils.dataset import TreeClassifPreprocessedDataset
+
+seed = 42
+np.random.seed(seed)
+
+# Load data
+data = []
+labels = []
+
+# Specify data folder direction
+data_dir = r'F:\train_val_delete_nan_samples'
+ds = TreeClassifPreprocessedDataset(data_dir)
+
+for data_, label_ in ds:
+    data.append(data_)
+    labels.append(label_)
+
+data = np.array(data)
+data_reshaped = data.reshape(-1, data.shape[1], data.shape[2] * data.shape[3])
+print (data_reshaped.shape)
+
+# Reshape the data to normalize
+data_normalized_reshaped = data_reshaped.reshape(data_reshaped.shape[0], -1)
+print(data_normalized_reshaped.shape)
+
+# Apply Min-Max normalization
+scaler = MinMaxScaler()
+data_normalized = scaler.fit_transform(data_normalized_reshaped)
+print(data_normalized[:10, :])
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(data_normalized, labels, test_size=0.3, random_state=seed)
+# print(np.array(data).shape)
+
+# Bulid a MLP classifier
+# hidden_layer_sizesarray-like of shape(n_layers - 2,), default=(100,)
+# The default solver ‘adam’ works pretty well on relatively large datasets 
+#    (with thousands of training samples or more) in terms of both training time and validation score. 
+# Next step try to find the best size of hiden layer, e.g.add a Cross-validation
+clf = MLPClassifier(activation='logistic',solver='adam',hidden_layer_sizes=(30,20), random_state=42)
+
+# Cross Validation--K folds
+# on train dataset
+scores = cross_val_score(clf, X_train, y_train, cv=3, scoring='accuracy')
+
+# The score of every folds and its average
+print("Cross-validation scores:", scores)
+print("Average score:", scores.mean())
+
+clf.fit(X_train, y_train)
+test_score = clf.score(X_test, y_test)
+print("Test set score:", test_score)
+
+y_pred = clf.predict(X_test)
+print(classification_report(y_test, y_pred))
+
+# test on the test data
+# Load data
+test_data = []
+test_labels = []
+
+# Specify data folder direction
+test_data_dir = r'F:\test_delete_nan_samples'
+test_ds = TreeClassifPreprocessedDataset(test_data_dir)
+
+for data_, label_ in test_ds:
+    test_data.append(data_)
+    test_labels.append(label_)
+
+clf2 = MLPClassifier(activation='logistic',solver='adam',hidden_layer_sizes=(30,20), random_state=42)
+# Cross Validation--K folds
+# on train dataset
+scores2 = cross_val_score(clf2, data_normalized, labels, cv=3, scoring='accuracy')
+
+# The score of every folds and its average
+print("Cross-validation scores:", scores2)
+print("Average score:", scores2.mean())
+
+test_data = np.array(test_data) 
+test_data = test_data.reshape(test_data.shape[0],-1)
+print (test_data.shape)
+
+clf2.fit(data_normalized, labels)
+test_score2 = clf2.score(test_data, test_labels)
+print("Test set score:", test_score2)
+ 
+y_pred2 = clf2.predict(test_data)
+print(classification_report(test_labels, y_pred2))
+
+# confusion matrix
+cm1 = confusion_matrix(test_labels, y_pred2)
+cm2 = confusion_matrix(y_test, y_pred)
+# print("Confusion Matrix:")
+# print(cm)
+
+disp = ConfusionMatrixDisplay(confusion_matrix=cm1,display_labels=clf2.classes_)
+disp.plot()
+plt.savefig(r"F:\DSEO\cm_testdata.tif")
+plt.show()
+
+disp2 = ConfusionMatrixDisplay(confusion_matrix=cm2,display_labels=clf.classes_)
+disp2.plot()
+plt.savefig(r"F:\DSEO\cm_traindata.tif")
+plt.show()
